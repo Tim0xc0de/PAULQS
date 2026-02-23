@@ -1,0 +1,1 @@
+# Inspection result domain model
