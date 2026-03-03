@@ -1,5 +1,10 @@
+import os
+import sys
 import uvicorn
 from fastapi import FastAPI
+
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+
 from app.infrastructure.database.db import engine, Base
 from app.api.routes import router as api_router
 
