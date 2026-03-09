@@ -37,6 +37,30 @@ def test_get_inspections():
     else:
         print(f"❌ Fehler beim Abrufen: {response.status_code}")
 
+def test_system_healthcheck():
+    """Prüft den System-HealthCheck (Roboter, Kalibrierung, Kamera)."""
+    response = requests.get(f"{BASE_URL}/healthcheck")
+    
+    if response.status_code == 200:
+        data = response.json()
+        print(f"✅ HealthCheck Status: {data['status']}")
+        print(f"   Roboter verbunden: {data['components']['robot_connected']}")
+        print(f"   Roboter kalibriert: {data['components']['robot_calibrated']}")
+        print(f"   Kamera verbunden: {data['components']['camera_connected']}")
+    else:
+        print(f"❌ Fehler beim HealthCheck: {response.status_code}")
+
+def test_calibration():
+    """Führt eine automatische Kalibrierung des Roboters durch."""
+    response = requests.post(f"{BASE_URL}/calibration")
+    
+    if response.status_code == 200:
+        data = response.json()
+        print(f"✅ Kalibrierung: {data['status']}")
+        print(f"   Nachricht: {data['message']}")
+    else:
+        print(f"❌ Fehler bei Kalibrierung: {response.status_code}")
+
 if __name__ == "__main__":
     print("Starte API-Tests...")
     test_health_check()
@@ -44,3 +68,7 @@ if __name__ == "__main__":
     test_create_configuration()
     print("-" * 20)
     test_get_inspections()
+    print("-" * 20)
+    test_system_healthcheck()
+    print("-" * 20)
+    test_calibration()

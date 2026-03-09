@@ -1,9 +1,12 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from typing import List
+from pyniryo import NiryoRobot
 from app.infrastructure.database.db import SessionLocal
 from app.api import schemas
 from app.infrastructure.database.repository import InspectionRepository
+
+ROBOT_IP = "10.10.10.10"
 
 router = APIRouter()
 
@@ -24,3 +27,67 @@ def get_inspections(limit: int = 10, db: Session = Depends(get_db)):
     # Auch hier: Das Repo holt die Daten
     repo = InspectionRepository(db)
     return repo.get_all_inspections(limit)
+
+@router.get("/healthcheck")
+def health_check():
+    """
+    Prüft den Status der Systemkomponenten:
+    - Roboter-Verbindung
+    - Kalibrierungsstatus
+    - Kamera-Verbindung
+    """
+    # TODO: Echte Implementierung wenn Robot/Camera-Module fertig sind
+    robot_connected = _check_robot_connection()
+    robot_calibrated = _check_robot_calibration()
+    camera_connected = _check_camera_connection()
+    
+    all_ok = robot_connected and robot_calibrated and camera_connected
+    
+    return {
+        "status": "healthy" if all_ok else "unhealthy",
+        "components": {
+            "robot_connected": robot_connected,
+            "robot_calibrated": robot_calibrated,
+            "camera_connected": camera_connected
+        }
+    }
+
+@router.post("/calibration")
+def calibrate_robot():
+    """Führt eine automatische Kalibrierung des Roboters durch."""
+    try:
+        robot = NiryoRobot(ROBOT_IP)
+        robot.calibrate_auto()
+        robot.close_connection()
+        return {"status": "success", "message": "Roboter wurde erfolgreich kalibriert"}
+    except Exception as e:
+        return {"status": "error", "message": f"Kalibrierung fehlgeschlagen: {str(e)}"}
+
+def _check_robot_connection() -> bool:
+    """Prüft ob Roboter erreichbar ist."""
+    try:
+        robot = NiryoRobot(ROBOT_IP)
+        robot.close_connection()
+        return True
+    except Exception:
+        return False
+
+def _check_robot_calibration() -> bool:
+    """Prüft ob Roboter kalibriert ist (False = braucht Kalibrierung)."""
+    try:
+        robot = NiryoRobot(ROBOT_IP)
+        needs_calibration = robot.need_calibration()
+        robot.close_connection()
+        return not needs_calibration
+    except Exception:
+        return False
+
+def _check_camera_connection() -> bool:
+    """Prüft ob Kamera angeschlossen ist."""
+    try:
+        robot = NiryoRobot(ROBOT_IP)
+        img_compressed = robot.get_img_compressed()
+        robot.close_connection()
+        return img_compressed is not None
+    except Exception:
+        return False
