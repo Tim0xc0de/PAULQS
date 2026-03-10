@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PAUL - Robot Config Dashboard</title>
+    <style>
+        :root {
+            --bg: #f8fafc; --card: #ffffff; --border: #e2e8f0;
+            --text: #0f172a; --muted: #64748b; --light: #94a3b8;
+            --blue: #3b82f6; --green: #22c55e; --red: #ef4444;
+            --amber: #f59e0b; --purple: #8b5cf6;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); }
+
+        .topbar {
+            background: var(--card); border-bottom: 1px solid var(--border);
+            padding: 16px 32px; display: flex; align-items: center; justify-content: space-between;
+            position: sticky; top: 0; z-index: 20;
+        }
+        .topbar-left { display: flex; align-items: center; gap: 12px; }
+        .logo {
+            width: 36px; height: 36px; border-radius: 10px;
+            background: linear-gradient(135deg, var(--blue), var(--purple));
+            display: flex; align-items: center; justify-content: center;
+            color: #fff; font-weight: 900; font-size: 0.9rem;
+        }
+        .topbar h1 { font-size: 1.2rem; font-weight: 700; }
+        .topbar h1 span { color: var(--light); font-weight: 400; font-size: 0.85rem; margin-left: 6px; }
+        .topbar-actions { display: flex; gap: 8px; align-items: center; }
+
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; }
+        .status-dot.connected { background: var(--green); box-shadow: 0 0 6px rgba(34,197,94,0.5); }
+        .status-dot.disconnected { background: var(--red); box-shadow: 0 0 6px rgba(239,68,68,0.5); }
+        .status-text { font-size: 0.75rem; color: var(--muted); font-weight: 600; display: flex; align-items: center; gap: 6px; margin-right: 12px; }
+
+        .btn {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 9px 18px; border: none; border-radius: 8px; cursor: pointer;
+            font-size: 0.82rem; font-weight: 600; transition: all 0.15s;
+        }
+        .btn:active { transform: scale(0.97); }
+        .btn-blue { background: var(--blue); color: #fff; }
+        .btn-blue:hover { background: #2563eb; }
+        .btn-green { background: var(--green); color: #fff; }
+        .btn-green:hover { background: #16a34a; }
+        .btn-outline { background: var(--card); color: var(--text); border: 1px solid var(--border); }
+        .btn-outline:hover { background: #f1f5f9; }
+        .btn-red { background: #fef2f2; color: var(--red); border: 1px solid #fecaca; }
+        .btn-red:hover { background: #fee2e2; }
+        .btn-sm { padding: 5px 10px; font-size: 0.75rem; }
+
+        .container { max-width: 1200px; margin: 0 auto; padding: 28px 32px; }
+        .section { margin-bottom: 28px; }
+        .section-title {
+            font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.08em;
+            color: var(--muted); font-weight: 700; margin-bottom: 14px;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .section-title .count {
+            background: #e2e8f0; color: var(--muted); padding: 1px 8px;
+            border-radius: 99px; font-size: 0.7rem;
+        }
+
+        .settings-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+        .setting-box {
+            background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+            padding: 16px; display: flex; flex-direction: column; gap: 4px;
+        }
+        .setting-label { font-size: 0.75rem; color: var(--light); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+        .setting-input {
+            border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px;
+            font-size: 0.95rem; font-weight: 700; color: var(--text); background: #f8fafc;
+            width: 100%; transition: border-color 0.15s;
+        }
+        .setting-input:focus { outline: none; border-color: var(--blue); background: #fff; }
+        .setting-value { font-size: 1.1rem; font-weight: 800; color: var(--text); }
+
+        .pipeline-card {
+            background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+            padding: 24px; overflow-x: auto;
+        }
+        .pipeline-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+        .pipeline-legend { display: flex; gap: 12px; }
+        .legend-item { display: flex; align-items: center; gap: 5px; font-size: 0.75rem; color: var(--muted); font-weight: 600; }
+        .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+        .pipeline-track { display: flex; align-items: flex-start; gap: 0; min-width: max-content; padding: 8px 0; }
+
+        .p-node {
+            display: flex; flex-direction: column; align-items: center; gap: 8px;
+            min-width: 80px; cursor: grab; user-select: none;
+        }
+        .p-node.dragging { opacity: 0.3; transform: scale(0.95); }
+        .p-node.drag-over .p-box { box-shadow: 0 0 0 3px rgba(59,130,246,0.3); border-color: var(--blue); }
+        .p-box {
+            width: 64px; height: 64px; border-radius: 14px; border: 2px solid var(--border);
+            background: var(--card); display: flex; flex-direction: column;
+            align-items: center; justify-content: center; transition: all 0.15s;
+            position: relative;
+        }
+        .p-box:hover { transform: translateY(-3px); box-shadow: 0 6px 16px rgba(0,0,0,0.08); }
+        .p-box .num { font-size: 1.2rem; font-weight: 900; color: var(--text); line-height: 1; }
+        .p-box .label { font-size: 0.5rem; color: var(--light); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; }
+        .p-box.close-box { background: #f0fdf4; border-color: #86efac; }
+        .p-box.close-box::before { content: ''; position: absolute; top: -5px; right: -5px; width: 16px; height: 16px; background: var(--green); border-radius: 50%; border: 2px solid var(--card); }
+        .p-box.open-box { background: #fef2f2; border-color: #fca5a5; }
+        .p-box.open-box::before { content: ''; position: absolute; top: -5px; right: -5px; width: 16px; height: 16px; background: var(--red); border-radius: 50%; border: 2px solid var(--card); }
+        .p-box.home-box { background: linear-gradient(135deg, #eff6ff, #f5f3ff); border-color: #a5b4fc; }
+        .p-tag { font-size: 0.6rem; font-weight: 700; padding: 2px 8px; border-radius: 6px; white-space: nowrap; }
+        .p-tag.close-tag { background: #dcfce7; color: #15803d; }
+        .p-tag.open-tag { background: #fee2e2; color: #b91c1c; }
+        .p-action { margin-top: 2px; }
+        .p-action select {
+            font-size: 0.65rem; padding: 3px 6px; border-radius: 6px;
+            border: 1px solid var(--border); background: var(--card); cursor: pointer;
+            font-weight: 600; color: var(--muted);
+        }
+        .p-action select:focus { outline: none; border-color: var(--blue); }
+        .p-arrow { display: flex; align-items: center; padding-top: 20px; color: #cbd5e1; }
+        .p-arrow svg { width: 28px; height: 12px; }
+
+        .pos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+        .pos-card {
+            background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+            padding: 18px; transition: all 0.15s;
+        }
+        .pos-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .pos-card.close-card { border-left: 4px solid var(--green); }
+        .pos-card.open-card { border-left: 4px solid var(--red); }
+        .pos-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+        .pos-name { font-weight: 800; font-size: 1rem; display: flex; align-items: center; gap: 8px; }
+        .pos-badge { font-size: 0.65rem; font-weight: 700; padding: 3px 8px; border-radius: 6px; }
+        .pos-badge.green { background: #dcfce7; color: #15803d; }
+        .pos-badge.red { background: #fee2e2; color: #b91c1c; }
+        .joints { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+        .joint { display: flex; flex-direction: column; gap: 3px; }
+        .joint-lbl { font-size: 0.65rem; color: var(--light); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+        .joint-inp {
+            border: 1px solid var(--border); border-radius: 8px; padding: 7px 8px;
+            font-family: 'SF Mono', 'Courier New', monospace; font-size: 0.82rem;
+            font-weight: 600; color: var(--text); background: #f8fafc; width: 100%;
+            transition: all 0.15s;
+        }
+        .joint-inp:focus { outline: none; border-color: var(--blue); background: #fff; box-shadow: 0 0 0 2px rgba(59,130,246,0.1); }
+        .joint-inp.edited { border-color: var(--amber); background: #fffbeb; }
+
+        .overlay {
+            display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.4);
+            backdrop-filter: blur(6px); z-index: 50; align-items: center; justify-content: center;
+        }
+        .overlay.open { display: flex; }
+        .modal {
+            background: var(--card); border-radius: 20px; padding: 28px;
+            width: 480px; max-height: 80vh; box-shadow: 0 24px 48px rgba(0,0,0,0.2);
+            display: flex; flex-direction: column;
+        }
+        .modal h3 { font-size: 1rem; margin-bottom: 14px; }
+        .modal pre {
+            flex: 1; overflow: auto; background: #f1f5f9; border-radius: 10px;
+            padding: 16px; font-size: 0.78rem; line-height: 1.6; border: 1px solid var(--border);
+        }
+        .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; }
+
+        .toast-wrap { position: fixed; bottom: 20px; right: 20px; z-index: 60; }
+        .toast {
+            padding: 12px 20px; border-radius: 10px; font-weight: 600; font-size: 0.82rem;
+            color: #fff; transform: translateY(60px); opacity: 0; transition: all 0.25s;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+        }
+        .toast.visible { transform: translateY(0); opacity: 1; }
+        .toast.ok { background: var(--green); }
+        .toast.info { background: var(--blue); }
+        .toast.err { background: var(--red); }
+
+        .loading { text-align: center; padding: 60px; color: var(--light); font-size: 0.9rem; }
+
+        /* Healthcheck */
+        .hc-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+        .hc-card {
+            background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+            padding: 20px; display: flex; align-items: center; gap: 16px;
+            transition: all 0.2s;
+        }
+        .hc-card.ok { border-left: 4px solid var(--green); }
+        .hc-card.fail { border-left: 4px solid var(--red); }
+        .hc-card.pending { border-left: 4px solid var(--light); }
+        .hc-icon {
+            width: 48px; height: 48px; border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.4rem; flex-shrink: 0;
+        }
+        .hc-icon.ok { background: #f0fdf4; }
+        .hc-icon.fail { background: #fef2f2; }
+        .hc-icon.pending { background: #f1f5f9; }
+        .hc-info { flex: 1; }
+        .hc-name { font-weight: 700; font-size: 0.9rem; color: var(--text); margin-bottom: 2px; }
+        .hc-status { font-size: 0.78rem; font-weight: 600; }
+        .hc-status.ok { color: var(--green); }
+        .hc-status.fail { color: var(--red); }
+        .hc-status.pending { color: var(--light); }
+        .hc-overall {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 6px 16px; border-radius: 99px; font-size: 0.8rem; font-weight: 700;
+        }
+        .hc-overall.healthy { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
+        .hc-overall.unhealthy { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+        .hc-overall.unknown { background: #f1f5f9; color: var(--light); border: 1px solid var(--border); }
+        .btn.loading-btn { pointer-events: none; opacity: 0.6; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--blue); border-radius: 50%; animation: spin 0.6s linear infinite; }
+
+        /* --- Qualitätscheck Sektion --- */
+        .qc-container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .qc-image-card {
+            background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+            padding: 20px; display: flex; flex-direction: column; gap: 12px;
+        }
+        .qc-image-wrap {
+            position: relative; border-radius: 12px; overflow: hidden;
+            background: #0f172a; aspect-ratio: 4/3; display: flex;
+            align-items: center; justify-content: center;
+        }
+        .qc-image-wrap img {
+            width: 100%; height: 100%; object-fit: contain;
+        }
+        .qc-image-placeholder {
+            color: #475569; font-size: 0.85rem; text-align: center;
+            display: flex; flex-direction: column; align-items: center; gap: 10px;
+        }
+        .qc-image-placeholder .placeholder-icon { font-size: 2.5rem; opacity: 0.4; }
+        .qc-image-tabs { display: flex; gap: 6px; }
+        .qc-tab {
+            padding: 6px 14px; border-radius: 8px; border: 1px solid var(--border);
+            background: var(--bg); font-size: 0.75rem; font-weight: 600;
+            cursor: pointer; color: var(--muted); transition: all 0.15s;
+        }
+        .qc-tab.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+        .qc-tab:hover:not(.active) { background: #e2e8f0; }
+
+        .qc-details-card {
+            background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+            padding: 24px; display: flex; flex-direction: column; gap: 16px;
+        }
+        .qc-verdict {
+            display: flex; align-items: center; gap: 16px;
+            padding: 20px; border-radius: 14px;
+        }
+        .qc-verdict.pass { background: linear-gradient(135deg, #f0fdf4, #dcfce7); border: 1px solid #86efac; }
+        .qc-verdict.fail { background: linear-gradient(135deg, #fef2f2, #fee2e2); border: 1px solid #fca5a5; }
+        .qc-verdict.none { background: #f1f5f9; border: 1px solid var(--border); }
+        .qc-verdict-icon {
+            width: 56px; height: 56px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.6rem; flex-shrink: 0;
+        }
+        .qc-verdict.pass .qc-verdict-icon { background: #fff; box-shadow: 0 2px 8px rgba(34,197,94,0.2); }
+        .qc-verdict.fail .qc-verdict-icon { background: #fff; box-shadow: 0 2px 8px rgba(239,68,68,0.2); }
+        .qc-verdict.none .qc-verdict-icon { background: #fff; }
+        .qc-verdict-text h3 { font-size: 1.1rem; font-weight: 800; margin-bottom: 2px; }
+        .qc-verdict.pass .qc-verdict-text h3 { color: #15803d; }
+        .qc-verdict.fail .qc-verdict-text h3 { color: #b91c1c; }
+        .qc-verdict.none .qc-verdict-text h3 { color: var(--muted); }
+        .qc-verdict-text p { font-size: 0.8rem; color: var(--muted); font-weight: 500; }
+
+        .qc-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .qc-metric {
+            background: var(--bg); border: 1px solid var(--border); border-radius: 12px;
+            padding: 14px; display: flex; flex-direction: column; gap: 4px;
+        }
+        .qc-metric-label { font-size: 0.65rem; color: var(--light); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+        .qc-metric-value { font-size: 1.3rem; font-weight: 900; color: var(--text); }
+        .qc-metric-value.pass { color: var(--green); }
+        .qc-metric-value.fail { color: var(--red); }
+        .qc-metric-sub { font-size: 0.7rem; color: var(--light); font-weight: 500; }
+
+        .qc-timestamp {
+            display: flex; align-items: center; gap: 8px;
+            font-size: 0.75rem; color: var(--light); font-weight: 600;
+            padding-top: 8px; border-top: 1px solid var(--border);
+        }
+        .qc-timestamp-icon { font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+
+<div class="topbar">
+    <div class="topbar-left">
+        <div class="logo">P</div>
+        <h1>PAUL <span>Config Dashboard</span></h1>
+    </div>
+    <div class="topbar-actions">
+        <div class="status-text">
+            <div class="status-dot" id="status-dot"></div>
+            <span id="status-label">Verbinde...</span>
+        </div>
+        <button class="btn btn-outline" onclick="loadFromServer()">Neu laden</button>
+        <button class="btn btn-outline" onclick="showJSON()">JSON</button>
+        <button class="btn btn-green" onclick="saveToServer()">Speichern</button>
+    </div>
+</div>
+
+<div class="container">
+    <div id="app-loading" class="loading">Config wird vom Server geladen...</div>
+    <div id="app-content" style="display:none">
+
+    <!-- Healthcheck -->
+    <div class="section">
+        <div class="section-title" style="justify-content:space-between">
+            <div style="display:flex;align-items:center;gap:8px">System Health <span class="hc-overall unknown" id="hc-overall">Nicht gepr&uuml;ft</span></div>
+            <button class="btn btn-blue btn-sm" id="hc-btn" onclick="runHealthcheck()">Healthcheck starten</button>
+        </div>
+        <div class="hc-grid">
+            <div class="hc-card pending" id="hc-robot">
+                <div class="hc-icon pending">&#129302;</div>
+                <div class="hc-info">
+                    <div class="hc-name">Roboter-Verbindung</div>
+                    <div class="hc-status pending" id="hc-robot-status">Nicht gepr&uuml;ft</div>
+                </div>
+            </div>
+            <div class="hc-card pending" id="hc-calib">
+                <div class="hc-icon pending">&#9881;&#65039;</div>
+                <div class="hc-info">
+                    <div class="hc-name">Kalibrierung</div>
+                    <div class="hc-status pending" id="hc-calib-status">Nicht gepr&uuml;ft</div>
+                </div>
+            </div>
+            <div class="hc-card pending" id="hc-cam">
+                <div class="hc-icon pending">&#128247;</div>
+                <div class="hc-info">
+                    <div class="hc-name">Kamera</div>
+                    <div class="hc-status pending" id="hc-cam-status">Nicht gepr&uuml;ft</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Qualitätscheck -->
+    <div class="section">
+        <div class="section-title" style="justify-content:space-between">
+            <div style="display:flex;align-items:center;gap:8px">Letzte Inspektion</div>
+            <button class="btn btn-blue btn-sm" id="qc-btn" onclick="loadInspection()">Aktualisieren</button>
+        </div>
+        <div class="qc-container">
+            <!-- Bild -->
+            <div class="qc-image-card">
+                <div class="qc-image-tabs">
+                    <button class="qc-tab active" onclick="switchImage('result', this)">Erkennung</button>
+                    <button class="qc-tab" onclick="switchImage('raw', this)">Original</button>
+                </div>
+                <div class="qc-image-wrap" id="qc-image-wrap">
+                    <div class="qc-image-placeholder" id="qc-placeholder">
+                        <span class="placeholder-icon">&#128247;</span>
+                        <span>Noch keine Inspektion durchgef&uuml;hrt</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ergebnis -->
+            <div class="qc-details-card">
+                <div class="qc-verdict none" id="qc-verdict">
+                    <div class="qc-verdict-icon">&#8212;</div>
+                    <div class="qc-verdict-text">
+                        <h3 id="qc-verdict-title">Keine Daten</h3>
+                        <p id="qc-verdict-sub">Starte eine Inspektion &uuml;ber POST /api/config</p>
+                    </div>
+                </div>
+
+                <div class="qc-metrics">
+                    <div class="qc-metric">
+                        <span class="qc-metric-label">Erkannte Augen</span>
+                        <span class="qc-metric-value" id="qc-actual-dots">&mdash;</span>
+                        <span class="qc-metric-sub">Ist-Wert</span>
+                    </div>
+                    <div class="qc-metric">
+                        <span class="qc-metric-label">Soll-Augen</span>
+                        <span class="qc-metric-value" id="qc-target-dots">&mdash;</span>
+                        <span class="qc-metric-sub">aus Konfiguration</span>
+                    </div>
+                    <div class="qc-metric">
+                        <span class="qc-metric-label">Farbe Links</span>
+                        <span class="qc-metric-value" id="qc-color-left" style="font-size:1rem">&mdash;</span>
+                        <span class="qc-metric-sub" id="qc-color-left-target">Soll: &mdash;</span>
+                    </div>
+                    <div class="qc-metric">
+                        <span class="qc-metric-label">Farbe Rechts</span>
+                        <span class="qc-metric-value" id="qc-color-right" style="font-size:1rem">&mdash;</span>
+                        <span class="qc-metric-sub" id="qc-color-right-target">Soll: &mdash;</span>
+                    </div>
+                </div>
+
+                <div class="qc-timestamp" id="qc-timestamp">
+                    <span class="qc-timestamp-icon">&#128339;</span>
+                    <span id="qc-time">Noch keine Inspektion</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Einstellungen</div>
+        <div class="settings-grid">
+            <div class="setting-box">
+                <span class="setting-label">Roboter IP</span>
+                <input class="setting-input" id="s-ip">
+            </div>
+            <div class="setting-box">
+                <span class="setting-label">Greifer Speed</span>
+                <input class="setting-input" id="s-speed" type="number">
+            </div>
+            <div class="setting-box">
+                <span class="setting-label">Anzahl Steps</span>
+                <div class="setting-value" id="s-count">0</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Ablauf-Sequenz <span class="count" id="seq-count">0</span></div>
+        <div class="pipeline-card">
+            <div class="pipeline-header">
+                <div class="pipeline-legend">
+                    <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div> Greifer zu</div>
+                    <div class="legend-item"><div class="legend-dot" style="background:var(--red)"></div> Greifer auf</div>
+                    <div class="legend-item"><div class="legend-dot" style="background:#a5b4fc"></div> Home</div>
+                </div>
+                <span style="font-size:0.7rem;color:var(--light)">Drag & Drop zum Umsortieren</span>
+            </div>
+            <div class="pipeline-track" id="track"></div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title" style="justify-content:space-between">
+            <div style="display:flex;align-items:center;gap:8px">Positionen (Joints in Rad) <span class="count" id="pos-count">0</span></div>
+            <button class="btn btn-outline btn-sm" onclick="addStep()">+ Neuer Step</button>
+        </div>
+        <div class="pos-grid" id="pos-grid"></div>
+    </div>
+
+    </div>
+</div>
+
+<div class="overlay" id="modal">
+    <div class="modal">
+        <h3>robot_config.json</h3>
+        <pre id="json-out"></pre>
+        <div class="modal-actions">
+            <button class="btn btn-outline" onclick="copyJSON()">Kopieren</button>
+            <button class="btn btn-blue" onclick="closeModal()">Schliessen</button>
+        </div>
+    </div>
+</div>
+
+<div class="toast-wrap"><div class="toast" id="toast"></div></div>
+
+<script>
+const JN = ['J1 Base','J2 Shoulder','J3 Elbow','J4 Forearm','J5 Wrist','J6 Hand'];
+const API = '/dashboard/robot-config';
+let cfg = null;
+let dragNode = null;
+
+function toast(msg, type='ok') {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.className = 'toast ' + type + ' visible';
+    setTimeout(() => t.classList.remove('visible'), 2500);
+}
+
+function setStatus(connected) {
+    const dot = document.getElementById('status-dot');
+    const label = document.getElementById('status-label');
+    dot.className = 'status-dot ' + (connected ? 'connected' : 'disconnected');
+    label.textContent = connected ? 'Verbunden mit Server' : 'Nicht verbunden';
+}
+
+/* --- Server Communication --- */
+async function loadFromServer() {
+    try {
+        const res = await fetch(API);
+        if (!res.ok) throw new Error('Server error');
+        cfg = await res.json();
+        setStatus(true);
+        applyConfig();
+        document.getElementById('app-loading').style.display = 'none';
+        document.getElementById('app-content').style.display = 'block';
+        toast('Config geladen vom Server');
+    } catch(e) {
+        setStatus(false);
+        document.getElementById('app-loading').textContent = 'Server nicht erreichbar. Starte den FastAPI-Server (python app/main.py) und lade die Seite neu.';
+        toast('Server nicht erreichbar', 'err');
+    }
+}
+
+async function saveToServer() {
+    const data = buildCfg();
+    try {
+        const res = await fetch(API, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        if (!res.ok) throw new Error('Save failed');
+        cfg = data;
+        toast('Config gespeichert in robot_config.json!');
+    } catch(e) {
+        toast('Fehler beim Speichern', 'err');
+    }
+}
+
+/* --- Apply / Build --- */
+function applyConfig() {
+    document.getElementById('s-ip').value = cfg.robot_ip;
+    document.getElementById('s-speed').value = cfg.gripper_speed;
+    renderPipeline();
+    renderPositions();
+}
+
+function buildCfg() {
+    const out = {
+        robot_ip: document.getElementById('s-ip').value,
+        gripper_speed: parseInt(document.getElementById('s-speed').value) || 500,
+        positions: {}, sequence: [],
+        gripper_close_at: cfg.gripper_close_at,
+        gripper_open_at: cfg.gripper_open_at
+    };
+    document.querySelectorAll('.pos-card').forEach(c => {
+        const s = c.dataset.step; const j = [];
+        c.querySelectorAll('.joint-inp').forEach(inp => j.push(parseFloat(inp.value) || 0));
+        out.positions[s] = j;
+    });
+    document.querySelectorAll('.p-node[data-step]').forEach(n => {
+        if (n.dataset.step !== 'home') out.sequence.push(n.dataset.step);
+    });
+    return out;
+}
+
+/* --- Pipeline --- */
+function renderPipeline() {
+    const track = document.getElementById('track');
+    track.innerHTML = '';
+    document.getElementById('seq-count').textContent = cfg.sequence.length;
+
+    cfg.sequence.forEach((step, i) => {
+        if (i > 0) {
+            const arrow = document.createElement('div');
+            arrow.className = 'p-arrow';
+            arrow.innerHTML = '<svg viewBox="0 0 28 12"><path d="M0 6h22l-4-4M22 6l-4 4" stroke="#cbd5e1" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>';
+            track.appendChild(arrow);
+        }
+
+        const node = document.createElement('div');
+        node.className = 'p-node'; node.draggable = true;
+        node.dataset.step = step; node.dataset.idx = i;
+
+        let bc = 'p-box';
+        if (step === cfg.gripper_close_at) bc += ' close-box';
+        if (step === cfg.gripper_open_at) bc += ' open-box';
+
+        let tag = '';
+        if (step === cfg.gripper_close_at) tag = '<span class="p-tag close-tag">Greifen</span>';
+        if (step === cfg.gripper_open_at) tag = '<span class="p-tag open-tag">Loslassen</span>';
+
+        const num = step.replace('step','');
+        let selClose = step === cfg.gripper_close_at ? 'selected' : '';
+        let selOpen = step === cfg.gripper_open_at ? 'selected' : '';
+
+        node.innerHTML = `
+            <div class="${bc}"><span class="num">${num}</span><span class="label">Step</span></div>
+            ${tag}
+            <div class="p-action">
+                <select onchange="setGripper('${step}',this.value)">
+                    <option value="">Aktion</option>
+                    <option value="close" ${selClose}>Greifer zu</option>
+                    <option value="open" ${selOpen}>Greifer auf</option>
+                </select>
+            </div>
+        `;
+
+        node.addEventListener('dragstart', e => { dragNode = node; node.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; });
+        node.addEventListener('dragend', () => { node.classList.remove('dragging'); track.querySelectorAll('.p-node').forEach(n => n.classList.remove('drag-over')); });
+        node.addEventListener('dragover', e => { e.preventDefault(); node.classList.add('drag-over'); });
+        node.addEventListener('dragleave', () => node.classList.remove('drag-over'));
+        node.addEventListener('drop', e => {
+            e.preventDefault(); node.classList.remove('drag-over');
+            if (dragNode && dragNode !== node) {
+                const fi = parseInt(dragNode.dataset.idx), ti = parseInt(node.dataset.idx);
+                const item = cfg.sequence.splice(fi,1)[0];
+                cfg.sequence.splice(ti,0,item);
+                renderPipeline();
+            }
+        });
+        track.appendChild(node);
+    });
+
+    const arrow = document.createElement('div');
+    arrow.className = 'p-arrow';
+    arrow.innerHTML = '<svg viewBox="0 0 28 12"><path d="M0 6h22l-4-4M22 6l-4 4" stroke="#cbd5e1" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>';
+    track.appendChild(arrow);
+    const home = document.createElement('div');
+    home.className = 'p-node';
+    home.innerHTML = '<div class="p-box home-box"><span class="num">H</span><span class="label">Home</span></div>';
+    track.appendChild(home);
+}
+
+function setGripper(step, action) {
+    if (action === 'close') cfg.gripper_close_at = step;
+    else if (action === 'open') cfg.gripper_open_at = step;
+    else {
+        if (cfg.gripper_close_at === step) cfg.gripper_close_at = '';
+        if (cfg.gripper_open_at === step) cfg.gripper_open_at = '';
+    }
+    renderPipeline();
+    renderPositions();
+}
+
+/* --- Position Cards --- */
+function renderPositions() {
+    const grid = document.getElementById('pos-grid');
+    grid.innerHTML = '';
+    const keys = Object.keys(cfg.positions);
+    document.getElementById('s-count').textContent = keys.length;
+    document.getElementById('pos-count').textContent = keys.length;
+
+    keys.forEach(step => {
+        const vals = cfg.positions[step];
+        const card = document.createElement('div');
+        card.className = 'pos-card'; card.dataset.step = step;
+        if (step === cfg.gripper_close_at) card.classList.add('close-card');
+        if (step === cfg.gripper_open_at) card.classList.add('open-card');
+
+        let badge = '';
+        if (step === cfg.gripper_close_at) badge = '<span class="pos-badge green">Greifer zu</span>';
+        if (step === cfg.gripper_open_at) badge = '<span class="pos-badge red">Greifer auf</span>';
+
+        card.innerHTML = `
+            <div class="pos-head">
+                <div class="pos-name">${step} ${badge}</div>
+                <button class="btn btn-red btn-sm" onclick="removeStep('${step}')">Entfernen</button>
+            </div>
+            <div class="joints">
+                ${vals.map((v,i) => `
+                    <div class="joint">
+                        <span class="joint-lbl">${JN[i]}</span>
+                        <input class="joint-inp" type="number" step="0.0001" value="${v}" onfocus="this.select()" onchange="this.classList.add('edited')">
+                    </div>
+                `).join('')}
+            </div>
+        `;
+        grid.appendChild(card);
+    });
+}
+
+function addStep() {
+    const n = Object.keys(cfg.positions).length + 1;
+    const name = 'step' + n;
+    cfg.positions[name] = [0,0,0,0,0,0];
+    cfg.sequence.push(name);
+    renderPipeline(); renderPositions();
+    toast('Step ' + n + ' hinzugefuegt', 'info');
+}
+
+function removeStep(step) {
+    if (Object.keys(cfg.positions).length <= 1) return;
+    delete cfg.positions[step];
+    cfg.sequence = cfg.sequence.filter(s => s !== step);
+    if (cfg.gripper_close_at === step) cfg.gripper_close_at = '';
+    if (cfg.gripper_open_at === step) cfg.gripper_open_at = '';
+    renderPipeline(); renderPositions();
+    toast(step + ' entfernt', 'info');
+}
+
+/* --- JSON Modal --- */
+function showJSON() {
+    const c = buildCfg();
+    document.getElementById('json-out').textContent = JSON.stringify(c, null, 2);
+    document.getElementById('modal').classList.add('open');
+}
+function closeModal() { document.getElementById('modal').classList.remove('open'); }
+function copyJSON() {
+    const c = buildCfg();
+    navigator.clipboard.writeText(JSON.stringify(c, null, 2));
+    toast('In Zwischenablage kopiert!');
+}
+
+/* --- Healthcheck --- */
+async function runHealthcheck() {
+    const btn = document.getElementById('hc-btn');
+    btn.classList.add('loading-btn');
+    btn.innerHTML = '<span class="spinner"></span> Pr&uuml;fe...';
+
+    // Reset to pending
+    setHcCard('hc-robot', 'pending', 'Pr\u00fcfe...');
+    setHcCard('hc-calib', 'pending', 'Pr\u00fcfe...');
+    setHcCard('hc-cam', 'pending', 'Pr\u00fcfe...');
+    document.getElementById('hc-overall').className = 'hc-overall unknown';
+    document.getElementById('hc-overall').textContent = 'Pr\u00fcfe...';
+
+    try {
+        const res = await fetch('/api/healthcheck');
+        if (!res.ok) throw new Error('Healthcheck failed');
+        const data = await res.json();
+        const c = data.components;
+
+        setHcCard('hc-robot', c.robot_connected ? 'ok' : 'fail',
+            c.robot_connected ? 'Verbunden' : 'Nicht erreichbar');
+        setHcCard('hc-calib', c.robot_calibrated ? 'ok' : 'fail',
+            c.robot_calibrated ? 'Kalibriert' : 'Kalibrierung n\u00f6tig');
+        setHcCard('hc-cam', c.camera_connected ? 'ok' : 'fail',
+            c.camera_connected ? 'Verbunden' : 'Nicht erkannt');
+
+        const ov = document.getElementById('hc-overall');
+        if (data.status === 'healthy') {
+            ov.className = 'hc-overall healthy';
+            ov.textContent = 'Healthy';
+        } else {
+            ov.className = 'hc-overall unhealthy';
+            ov.textContent = 'Unhealthy';
+        }
+        toast('Healthcheck abgeschlossen');
+    } catch(e) {
+        setHcCard('hc-robot', 'fail', 'Server nicht erreichbar');
+        setHcCard('hc-calib', 'fail', 'Server nicht erreichbar');
+        setHcCard('hc-cam', 'fail', 'Server nicht erreichbar');
+        document.getElementById('hc-overall').className = 'hc-overall unhealthy';
+        document.getElementById('hc-overall').textContent = 'Fehler';
+        toast('Healthcheck fehlgeschlagen', 'err');
+    }
+
+    btn.classList.remove('loading-btn');
+    btn.innerHTML = 'Healthcheck starten';
+}
+
+function setHcCard(cardId, state, text) {
+    const card = document.getElementById(cardId);
+    card.className = 'hc-card ' + state;
+    const icon = card.querySelector('.hc-icon');
+    icon.className = 'hc-icon ' + state;
+    const status = card.querySelector('.hc-status');
+    status.className = 'hc-status ' + state;
+    status.textContent = text;
+}
+
+/* --- Qualitätscheck / Inspektion --- */
+let qcImageType = 'result';
+
+async function loadInspection() {
+    const btn = document.getElementById('qc-btn');
+    btn.classList.add('loading-btn');
+    btn.innerHTML = '<span class="spinner"></span> Lade...';
+
+    try {
+        const res = await fetch('/dashboard/last-inspection');
+        if (!res.ok) throw new Error('Keine Daten');
+        const data = await res.json();
+        const insp = data.inspection;
+        const conf = data.config;
+
+        // Verdict
+        const verdict = document.getElementById('qc-verdict');
+        const vIcon = verdict.querySelector('.qc-verdict-icon');
+        const vTitle = document.getElementById('qc-verdict-title');
+        const vSub = document.getElementById('qc-verdict-sub');
+
+        if (insp.is_ok) {
+            verdict.className = 'qc-verdict pass';
+            vIcon.textContent = '\u2714';
+            vTitle.textContent = 'Qualit\u00e4t OK';
+            vSub.textContent = 'Der W\u00fcrfel entspricht der Soll-Konfiguration.';
+        } else {
+            verdict.className = 'qc-verdict fail';
+            vIcon.textContent = '\u2718';
+            vTitle.textContent = 'Nicht bestanden';
+            if (insp.actual_dots !== null) {
+                vSub.textContent = 'Erkannt: ' + insp.actual_dots + ' Augen \u2013 Erwartet: ' + conf.target_dots;
+            } else {
+                vSub.textContent = 'Kein W\u00fcrfel erkannt oder Fehler bei der Analyse.';
+            }
+        }
+
+        // Metriken
+        const actualEl = document.getElementById('qc-actual-dots');
+        actualEl.textContent = insp.actual_dots !== null ? insp.actual_dots : '\u2014';
+        actualEl.className = 'qc-metric-value' + (insp.is_ok ? ' pass' : (insp.actual_dots !== null ? ' fail' : ''));
+
+        document.getElementById('qc-target-dots').textContent = conf.target_dots !== null ? conf.target_dots : '\u2014';
+        document.getElementById('qc-color-left').textContent = insp.actual_color_left || '\u2014';
+        document.getElementById('qc-color-left-target').textContent = 'Soll: ' + (conf.target_color_left || '\u2014');
+        document.getElementById('qc-color-right').textContent = insp.actual_color_right || '\u2014';
+        document.getElementById('qc-color-right-target').textContent = 'Soll: ' + (conf.target_color_right || '\u2014');
+
+        // Timestamp
+        if (insp.timestamp) {
+            const d = new Date(insp.timestamp);
+            document.getElementById('qc-time').textContent =
+                'Inspektion #' + insp.id + ' \u2013 ' +
+                d.toLocaleDateString('de-DE') + ', ' +
+                d.toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+        }
+
+        // Bild laden
+        if (data.has_image) {
+            showInspectionImage(qcImageType);
+        }
+
+        toast('Inspektionsdaten geladen');
+    } catch(e) {
+        toast('Keine Inspektionsdaten vorhanden', 'info');
+    }
+
+    btn.classList.remove('loading-btn');
+    btn.textContent = 'Aktualisieren';
+}
+
+function showInspectionImage(type) {
+    const wrap = document.getElementById('qc-image-wrap');
+    const ts = Date.now();
+    wrap.innerHTML = '<img src="/dashboard/last-image/' + type + '?t=' + ts + '" alt="Inspection Image" onerror="this.parentNode.innerHTML=\'<div class=qc-image-placeholder><span class=placeholder-icon>&#128247;</span><span>Bild nicht verf\u00fcgbar</span></div>\'">';
+}
+
+function switchImage(type, btn) {
+    qcImageType = type;
+    document.querySelectorAll('.qc-tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    showInspectionImage(type);
+}
+
+// Init: Lade Config + Inspektion beim Start
+loadFromServer();
+loadInspection();
+</script>
+</body>
+</html>

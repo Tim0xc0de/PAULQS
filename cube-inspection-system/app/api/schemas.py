@@ -16,6 +16,14 @@ class ConfigurationCreate(BaseModel):
                 "target_dots": 5
             }
         }
+class InspectionCreate(BaseModel):
+    config_id: int
+    actual_color_left: Optional[str] = None
+    actual_color_right: Optional[str] = None
+    actual_dots: Optional[int] = None
+    confidence: Optional[float] = None
+    is_ok: bool
+
 class InspectionResponse(BaseModel):
     id: int
     config_id: int

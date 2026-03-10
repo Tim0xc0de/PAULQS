@@ -1,7 +1,4 @@
 from sqlalchemy.orm import Session
-import subprocess
-import os
-import threading
 from app.domain import models
 from app.api import schemas
 
@@ -25,20 +22,7 @@ class InspectionRepository:
         # Automatisches Logging im SystemLog
         self.log_system_event("API", "INFO", f"Neue Konfiguration erstellt (ID: {db_config.id})")
         
-        # Trigger: Robot zur Home-Position fahren
-        self._trigger_robot_home()
-        
         return db_config
-    
-    def _trigger_robot_home(self):
-        """Startet Robot-Script im Hintergrund."""
-        def run():
-            script_path = os.path.join(os.path.dirname(__file__), "..", "..", "..", "tests", "test_robot.py")
-            script_path = os.path.abspath(script_path)
-            print(f"[TRIGGER] Robot fährt Home: {script_path}")
-            subprocess.run(["python3", script_path])
-        
-        threading.Thread(target=run, daemon=True).start()
 
     # --- Methoden für INSPECTIONS ---
 
@@ -48,9 +32,9 @@ class InspectionRepository:
             .order_by(models.Inspection.timestamp.desc())\
             .limit(limit).all()
 
-    def save_inspection(self, inspection_data):
-        """Speichert ein Prüfergebnis (wird später von PAUL/OpenCV genutzt)."""
-        db_inspection = models.Inspection(**inspection_data)
+    def save_inspection(self, inspection_data: schemas.InspectionCreate):
+        """Speichert ein Prüfergebnis."""
+        db_inspection = models.Inspection(**inspection_data.model_dump())
         self.db.add(db_inspection)
         self.db.commit()
         self.db.refresh(db_inspection)
