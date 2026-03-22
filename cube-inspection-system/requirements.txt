@@ -1,1 +1,21 @@
 # Project dependencies
+
+# Web Framework
+fastapi>=0.109.0
+uvicorn>=0.27.0
+
+# Database
+sqlalchemy>=2.0.25
+
+# Data Validation
+pydantic>=2.5.0
+
+# Computer Vision
+opencv-python>=4.9.0
+numpy>=1.26.0
+
+# Niryo Robot SDK
+pyniryo>=1.1.2
+
+# HTTP Client (für API Tests)
+requests>=2.31.0
