@@ -38,7 +38,10 @@ def get_gripper_open_at() -> str:
     config = load_config()
     return config.get("gripper_open_at")
 
-def get_capture_at() -> str:
-    """Gibt den Step zurück, bei dem die Kamera ein Bild machen soll."""
+def get_capture_at() -> list:
+    """Gibt die Steps zurück, bei denen die Kamera ein Bild machen soll."""
     config = load_config()
-    return config.get("capture_at")
+    val = config.get("capture_at", [])
+    if isinstance(val, str):
+        return [val] if val else []
+    return val

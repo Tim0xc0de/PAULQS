@@ -4,6 +4,7 @@ Nicht Teil der Kern-API. Kann komplett entfernt werden, ohne die Inspektion zu b
 """
 import os
 import json
+import glob
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from sqlalchemy.orm import Session
@@ -52,11 +53,11 @@ async def save_robot_config(request: Request):
     return {"status": "success", "message": "Config gespeichert"}
 
 
-# --- Inspektionsbild + letzte Inspektion ---
-@router.get("/last-image/{image_type}")
-def get_last_image(image_type: str):
-    """Gibt das letzte Kamera-Bild zurück (raw oder result)."""
-    filename = f"last_{image_type}.jpg"
+# --- Inspektionsbilder (pro Seite) ---
+@router.get("/side-image/{side}/{image_type}")
+def get_side_image(side: int, image_type: str):
+    """Gibt das Bild einer Würfelseite zurück (raw oder result)."""
+    filename = f"side_{side}_{image_type}.jpg"
     filepath = os.path.join(CAPTURE_DIR, filename)
     if os.path.exists(filepath):
         return FileResponse(filepath, media_type="image/jpeg")
@@ -74,22 +75,28 @@ def get_last_inspection(db: Session = Depends(get_db)):
     insp = inspections[0]
     config = db.query(models.Configuration).filter(models.Configuration.id == insp.config_id).first()
 
-    has_image = os.path.exists(os.path.join(CAPTURE_DIR, "last_result.jpg"))
+    # Anzahl vorhandener Seitenbilder ermitteln
+    side_images = sorted(glob.glob(os.path.join(CAPTURE_DIR, "side_*_raw.jpg")))
+    side_count = len(side_images)
+
+    # JSON-Strings aus DB parsen
+    actual_dots = json.loads(insp.actual_dots) if insp.actual_dots else None
+    target_dots = json.loads(config.target_dots) if config and config.target_dots else None
 
     return {
         "inspection": {
             "id": insp.id,
             "timestamp": insp.timestamp.isoformat() if insp.timestamp else None,
-            "actual_dots": insp.actual_dots,
+            "actual_dots": actual_dots,
             "actual_color_left": insp.actual_color_left,
             "actual_color_right": insp.actual_color_right,
             "confidence": insp.confidence,
             "is_ok": insp.is_ok,
         },
         "config": {
-            "target_dots": config.target_dots if config else None,
+            "target_dots": target_dots,
             "target_color_left": config.target_color_left if config else None,
             "target_color_right": config.target_color_right if config else None,
         },
-        "has_image": has_image,
+        "side_count": side_count,
     }

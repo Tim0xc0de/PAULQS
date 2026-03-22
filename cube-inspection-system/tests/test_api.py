@@ -13,7 +13,7 @@ def test_create_configuration():
     payload = {
         "target_color_left": "rot",
         "target_color_right": "grün",
-        "target_dots": 4
+        "target_dots": [1, 2, 3]
     }
     
     response = requests.post(f"{BASE_URL}/config", json=payload)

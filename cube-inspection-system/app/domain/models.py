@@ -8,7 +8,7 @@ class Configuration(Base):
     id = Column(Integer, primary_key=True, index=True)
     target_color_left = Column(String)
     target_color_right = Column(String)
-    target_dots = Column(Integer)
+    target_dots = Column(String)
     created_at = Column(DateTime, default=datetime.utcnow)
     inspections = relationship("Inspection", back_populates="config")
 
@@ -19,7 +19,7 @@ class Inspection(Base):
     timestamp = Column(DateTime, default=datetime.utcnow)
     actual_color_left = Column(String)
     actual_color_right = Column(String)
-    actual_dots = Column(Integer)
+    actual_dots = Column(String)
     confidence = Column(Float)
     is_ok = Column(Boolean)
     config = relationship("Configuration", back_populates="inspections")

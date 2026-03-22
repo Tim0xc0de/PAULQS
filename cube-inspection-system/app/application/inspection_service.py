@@ -1,4 +1,5 @@
 import os
+import json
 import cv2
 from app.infrastructure.database.db import SessionLocal
 from app.infrastructure.database.repository import InspectionRepository
@@ -19,32 +20,35 @@ def run_inspection(config_id: int):
     controller = RobotController()
 
     try:
-        # 1. Roboter-Sequenz fahren, bei capture_at Bild aufnehmen
+        # 1. Roboter-Sequenz fahren, bei capture_steps Bilder aufnehmen
         if not controller.connect() or not controller.prepare():
-            _save(config_id, None)
+            _save(config_id, [])
             return
 
-        img = controller.run_sequence_with_capture(
-            capture_step=get_capture_at(),
+        captures = controller.run_sequence_with_capture(
+            capture_steps=get_capture_at(),
             capture_fn=lambda: capture(controller.robot)
         )
 
-        # 2. Bild analysieren
-        detection = detect_cube(img) if img is not None else None
+        # 2. Jedes Bild analysieren und speichern
+        detections = []
+        for i, (step_name, img) in enumerate(captures, start=1):
+            detection = detect_cube(img) if img is not None else None
+            detections.append(detection)
 
-        # 3. Bild speichern (Original + mit Erkennung)
-        if img is not None:
-            cv2.imwrite(os.path.join(CAPTURE_DIR, "last_raw.jpg"), img)
-            if detection:
-                _draw_result(img, detection)
-            cv2.imwrite(os.path.join(CAPTURE_DIR, "last_result.jpg"), img)
+            if img is not None:
+                cv2.imwrite(os.path.join(CAPTURE_DIR, f"side_{i}_raw.jpg"), img)
+                result_img = img.copy()
+                if detection:
+                    _draw_result(result_img, detection)
+                cv2.imwrite(os.path.join(CAPTURE_DIR, f"side_{i}_result.jpg"), result_img)
 
-        # 4. Soll/Ist vergleichen und speichern
-        _save(config_id, detection)
+        # 3. Soll/Ist vergleichen und speichern
+        _save(config_id, detections)
 
     except Exception as e:
         print(f"[INSPECTION] Fehler: {e}")
-        _save(config_id, None)
+        _save(config_id, [])
     finally:
         controller.disconnect()
 
@@ -58,28 +62,31 @@ def _draw_result(img, detection):
                 cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
 
 
-def _save(config_id: int, detection: dict | None):
-    """Speichert das Ergebnis in der DB."""
+def _save(config_id: int, detections: list):
+    """Speichert das Ergebnis in der DB. Vergleich ist reihenfolge-unabhängig."""
     db = SessionLocal()
     try:
         repo = InspectionRepository(db)
         config = db.query(Configuration).filter(Configuration.id == config_id).first()
 
-        # Erkannte Augenzahl auslesen
-        actual_dots = None
-        if detection:
-            actual_dots = detection["dots"]
+        # Erkannte Augenzahlen auslesen
+        actual_dots = [d["dots"] for d in detections if d is not None]
 
-        # Soll/Ist vergleichen
+        # Soll-Werte aus DB laden (JSON-String → Liste)
+        target_dots = []
+        if config and config.target_dots:
+            target_dots = json.loads(config.target_dots)
+
+        # Vergleich: Reihenfolge egal → sortierte Listen vergleichen
         is_ok = False
-        if actual_dots is not None and config:
-            is_ok = actual_dots == config.target_dots
+        if actual_dots and target_dots:
+            is_ok = sorted(actual_dots) == sorted(target_dots)
 
         repo.save_inspection(InspectionCreate(
             config_id=config_id,
-            actual_dots=actual_dots,
+            actual_dots=actual_dots if actual_dots else None,
             is_ok=is_ok,
         ))
-        print(f"[INSPECTION] Ergebnis: Augen={actual_dots}, OK={is_ok}")
+        print(f"[INSPECTION] Ergebnis: Soll={target_dots}, Ist={actual_dots}, OK={is_ok}")
     finally:
         db.close()

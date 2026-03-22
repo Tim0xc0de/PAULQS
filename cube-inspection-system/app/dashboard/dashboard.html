@@ -341,57 +341,55 @@
             <div style="display:flex;align-items:center;gap:8px">Letzte Inspektion</div>
             <button class="btn btn-blue btn-sm" id="qc-btn" onclick="loadInspection()">Aktualisieren</button>
         </div>
-        <div class="qc-container">
-            <!-- Bild -->
-            <div class="qc-image-card">
-                <div class="qc-image-tabs">
-                    <button class="qc-tab active" onclick="switchImage('result', this)">Erkennung</button>
-                    <button class="qc-tab" onclick="switchImage('raw', this)">Original</button>
-                </div>
-                <div class="qc-image-wrap" id="qc-image-wrap">
-                    <div class="qc-image-placeholder" id="qc-placeholder">
-                        <span class="placeholder-icon">&#128247;</span>
-                        <span>Noch keine Inspektion durchgef&uuml;hrt</span>
-                    </div>
+
+        <!-- Ergebnis-Karte oben -->
+        <div class="qc-details-card" style="margin-bottom:16px">
+            <div class="qc-verdict none" id="qc-verdict">
+                <div class="qc-verdict-icon">&#8212;</div>
+                <div class="qc-verdict-text">
+                    <h3 id="qc-verdict-title">Keine Daten</h3>
+                    <p id="qc-verdict-sub">Starte eine Inspektion &uuml;ber POST /api/config</p>
                 </div>
             </div>
 
-            <!-- Ergebnis -->
-            <div class="qc-details-card">
-                <div class="qc-verdict none" id="qc-verdict">
-                    <div class="qc-verdict-icon">&#8212;</div>
-                    <div class="qc-verdict-text">
-                        <h3 id="qc-verdict-title">Keine Daten</h3>
-                        <p id="qc-verdict-sub">Starte eine Inspektion &uuml;ber POST /api/config</p>
-                    </div>
+            <div class="qc-metrics">
+                <div class="qc-metric">
+                    <span class="qc-metric-label">Soll-Augen</span>
+                    <span class="qc-metric-value" id="qc-target-dots">&mdash;</span>
+                    <span class="qc-metric-sub">aus Konfiguration</span>
                 </div>
-
-                <div class="qc-metrics">
-                    <div class="qc-metric">
-                        <span class="qc-metric-label">Erkannte Augen</span>
-                        <span class="qc-metric-value" id="qc-actual-dots">&mdash;</span>
-                        <span class="qc-metric-sub">Ist-Wert</span>
-                    </div>
-                    <div class="qc-metric">
-                        <span class="qc-metric-label">Soll-Augen</span>
-                        <span class="qc-metric-value" id="qc-target-dots">&mdash;</span>
-                        <span class="qc-metric-sub">aus Konfiguration</span>
-                    </div>
-                    <div class="qc-metric">
-                        <span class="qc-metric-label">Farbe Links</span>
-                        <span class="qc-metric-value" id="qc-color-left" style="font-size:1rem">&mdash;</span>
-                        <span class="qc-metric-sub" id="qc-color-left-target">Soll: &mdash;</span>
-                    </div>
-                    <div class="qc-metric">
-                        <span class="qc-metric-label">Farbe Rechts</span>
-                        <span class="qc-metric-value" id="qc-color-right" style="font-size:1rem">&mdash;</span>
-                        <span class="qc-metric-sub" id="qc-color-right-target">Soll: &mdash;</span>
-                    </div>
+                <div class="qc-metric">
+                    <span class="qc-metric-label">Erkannte Augen</span>
+                    <span class="qc-metric-value" id="qc-actual-dots">&mdash;</span>
+                    <span class="qc-metric-sub">Ist-Wert</span>
                 </div>
+                <div class="qc-metric">
+                    <span class="qc-metric-label">Farbe Links</span>
+                    <span class="qc-metric-value" id="qc-color-left" style="font-size:1rem">&mdash;</span>
+                    <span class="qc-metric-sub" id="qc-color-left-target">Soll: &mdash;</span>
+                </div>
+                <div class="qc-metric">
+                    <span class="qc-metric-label">Farbe Rechts</span>
+                    <span class="qc-metric-value" id="qc-color-right" style="font-size:1rem">&mdash;</span>
+                    <span class="qc-metric-sub" id="qc-color-right-target">Soll: &mdash;</span>
+                </div>
+            </div>
 
-                <div class="qc-timestamp" id="qc-timestamp">
-                    <span class="qc-timestamp-icon">&#128339;</span>
-                    <span id="qc-time">Noch keine Inspektion</span>
+            <div class="qc-timestamp" id="qc-timestamp">
+                <span class="qc-timestamp-icon">&#128339;</span>
+                <span id="qc-time">Noch keine Inspektion</span>
+            </div>
+        </div>
+
+        <!-- Bilder aller Seiten -->
+        <div class="section-title">Aufnahmen pro Seite <span class="count" id="side-count">0</span></div>
+        <div id="qc-sides-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;">
+            <div class="qc-image-card">
+                <div class="qc-image-wrap">
+                    <div class="qc-image-placeholder">
+                        <span class="placeholder-icon">&#128247;</span>
+                        <span>Noch keine Inspektion durchgef&uuml;hrt</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -521,7 +519,8 @@ function buildCfg() {
         gripper_speed: parseInt(document.getElementById('s-speed').value) || 500,
         positions: {}, sequence: [],
         gripper_close_at: cfg.gripper_close_at,
-        gripper_open_at: cfg.gripper_open_at
+        gripper_open_at: cfg.gripper_open_at,
+        capture_at: cfg.capture_at
     };
     document.querySelectorAll('.pos-card').forEach(c => {
         const s = c.dataset.step; const j = [];
@@ -741,7 +740,7 @@ function setHcCard(cardId, state, text) {
 }
 
 /* --- Qualitätscheck / Inspektion --- */
-let qcImageType = 'result';
+let qcImageMode = 'result';
 
 async function loadInspection() {
     const btn = document.getElementById('qc-btn');
@@ -754,6 +753,7 @@ async function loadInspection() {
         const data = await res.json();
         const insp = data.inspection;
         const conf = data.config;
+        const sideCount = data.side_count || 0;
 
         // Verdict
         const verdict = document.getElementById('qc-verdict');
@@ -765,13 +765,13 @@ async function loadInspection() {
             verdict.className = 'qc-verdict pass';
             vIcon.textContent = '\u2714';
             vTitle.textContent = 'Qualit\u00e4t OK';
-            vSub.textContent = 'Der W\u00fcrfel entspricht der Soll-Konfiguration.';
+            vSub.textContent = 'Alle Seiten stimmen \u00fcberein (Reihenfolge egal).';
         } else {
             verdict.className = 'qc-verdict fail';
             vIcon.textContent = '\u2718';
             vTitle.textContent = 'Nicht bestanden';
-            if (insp.actual_dots !== null) {
-                vSub.textContent = 'Erkannt: ' + insp.actual_dots + ' Augen \u2013 Erwartet: ' + conf.target_dots;
+            if (insp.actual_dots && insp.actual_dots.length) {
+                vSub.textContent = 'Ist: [' + insp.actual_dots.join(', ') + '] \u2013 Soll: [' + (conf.target_dots || []).join(', ') + ']';
             } else {
                 vSub.textContent = 'Kein W\u00fcrfel erkannt oder Fehler bei der Analyse.';
             }
@@ -779,10 +779,10 @@ async function loadInspection() {
 
         // Metriken
         const actualEl = document.getElementById('qc-actual-dots');
-        actualEl.textContent = insp.actual_dots !== null ? insp.actual_dots : '\u2014';
-        actualEl.className = 'qc-metric-value' + (insp.is_ok ? ' pass' : (insp.actual_dots !== null ? ' fail' : ''));
+        actualEl.textContent = insp.actual_dots ? '[' + insp.actual_dots.join(', ') + ']' : '\u2014';
+        actualEl.className = 'qc-metric-value' + (insp.is_ok ? ' pass' : (insp.actual_dots ? ' fail' : ''));
 
-        document.getElementById('qc-target-dots').textContent = conf.target_dots !== null ? conf.target_dots : '\u2014';
+        document.getElementById('qc-target-dots').textContent = conf.target_dots ? '[' + conf.target_dots.join(', ') + ']' : '\u2014';
         document.getElementById('qc-color-left').textContent = insp.actual_color_left || '\u2014';
         document.getElementById('qc-color-left-target').textContent = 'Soll: ' + (conf.target_color_left || '\u2014');
         document.getElementById('qc-color-right').textContent = insp.actual_color_right || '\u2014';
@@ -797,10 +797,8 @@ async function loadInspection() {
                 d.toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
         }
 
-        // Bild laden
-        if (data.has_image) {
-            showInspectionImage(qcImageType);
-        }
+        // Seitenbilder rendern
+        renderSideImages(sideCount, insp.actual_dots);
 
         toast('Inspektionsdaten geladen');
     } catch(e) {
@@ -811,17 +809,43 @@ async function loadInspection() {
     btn.textContent = 'Aktualisieren';
 }
 
-function showInspectionImage(type) {
-    const wrap = document.getElementById('qc-image-wrap');
+function renderSideImages(count, actualDots) {
+    const grid = document.getElementById('qc-sides-grid');
+    document.getElementById('side-count').textContent = count;
+    if (count === 0) {
+        grid.innerHTML = '<div class="qc-image-card"><div class="qc-image-wrap"><div class="qc-image-placeholder"><span class="placeholder-icon">&#128247;</span><span>Noch keine Aufnahmen</span></div></div></div>';
+        return;
+    }
     const ts = Date.now();
-    wrap.innerHTML = '<img src="/dashboard/last-image/' + type + '?t=' + ts + '" alt="Inspection Image" onerror="this.parentNode.innerHTML=\'<div class=qc-image-placeholder><span class=placeholder-icon>&#128247;</span><span>Bild nicht verf\u00fcgbar</span></div>\'">';
+    let html = '';
+    for (let i = 1; i <= count; i++) {
+        const dots = (actualDots && actualDots[i-1] !== undefined) ? actualDots[i-1] : '?';
+        html += `
+        <div class="qc-image-card">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+                <span style="font-weight:800;font-size:0.85rem">Seite ${i}</span>
+                <span style="font-size:0.75rem;font-weight:700;color:var(--muted)">Augen: ${dots}</span>
+            </div>
+            <div class="qc-image-tabs">
+                <button class="qc-tab ${qcImageMode==='result'?'active':''}" onclick="switchSideTab(${i},'result',this)">Erkennung</button>
+                <button class="qc-tab ${qcImageMode==='raw'?'active':''}" onclick="switchSideTab(${i},'raw',this)">Original</button>
+            </div>
+            <div class="qc-image-wrap" id="qc-side-${i}">
+                <img src="/dashboard/side-image/${i}/${qcImageMode}?t=${ts}" alt="Seite ${i}"
+                     onerror="this.parentNode.innerHTML='<div class=qc-image-placeholder><span class=placeholder-icon>&#128247;</span><span>Bild nicht verf\u00fcgbar</span></div>'">
+            </div>
+        </div>`;
+    }
+    grid.innerHTML = html;
 }
 
-function switchImage(type, btn) {
-    qcImageType = type;
-    document.querySelectorAll('.qc-tab').forEach(t => t.classList.remove('active'));
+function switchSideTab(side, type, btn) {
+    const card = btn.closest('.qc-image-card');
+    card.querySelectorAll('.qc-tab').forEach(t => t.classList.remove('active'));
     btn.classList.add('active');
-    showInspectionImage(type);
+    const wrap = document.getElementById('qc-side-' + side);
+    const ts = Date.now();
+    wrap.innerHTML = '<img src="/dashboard/side-image/' + side + '/' + type + '?t=' + ts + '" alt="Seite ' + side + '" onerror="this.parentNode.innerHTML=\'<div class=qc-image-placeholder><span class=placeholder-icon>&#128247;</span><span>Bild nicht verf\u00fcgbar</span></div>\'">';
 }
 
 // Init: Lade Config + Inspektion beim Start

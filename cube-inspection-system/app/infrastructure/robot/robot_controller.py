@@ -75,13 +75,14 @@ class RobotController:
         self.run_sequence_with_capture()
         return True
 
-    def run_sequence_with_capture(self, capture_step=None, capture_fn=None):
-        """Fährt die Sequenz ab. Ruft capture_fn bei capture_step auf.
-        Gibt das Ergebnis von capture_fn zurück (z.B. ein Bild) oder None.
+    def run_sequence_with_capture(self, capture_steps=None, capture_fn=None):
+        """Fährt die Sequenz ab. Ruft capture_fn bei jedem capture_step auf.
+        Gibt eine Liste von (step_name, image) Tupeln zurück.
         """
         gripper_close = get_gripper_close_at()
         gripper_open = get_gripper_open_at()
-        captured = None
+        capture_steps = capture_steps or []
+        captures = []
 
         for pos_name in get_sequence():
             print(f"[ROBOT] → {pos_name}")
@@ -92,10 +93,11 @@ class RobotController:
             elif pos_name == gripper_open:
                 self.release()
 
-            if capture_fn and pos_name == capture_step:
+            if capture_fn and pos_name in capture_steps:
                 print(f"[ROBOT] Kamera-Aufnahme bei {pos_name}")
-                captured = capture_fn()
+                img = capture_fn()
+                captures.append((pos_name, img))
 
         self.go_home()
         print("[ROBOT] Sequenz fertig!")
-        return captured
+        return captures

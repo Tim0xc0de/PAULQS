@@ -1,3 +1,4 @@
+import json
 from sqlalchemy.orm import Session
 from app.domain import models
 from app.api import schemas
@@ -13,7 +14,7 @@ class InspectionRepository:
         db_config = models.Configuration(
             target_color_left=config_data.target_color_left,
             target_color_right=config_data.target_color_right,
-            target_dots=config_data.target_dots
+            target_dots=json.dumps(config_data.target_dots)
         )
         self.db.add(db_config)
         self.db.commit()
@@ -34,7 +35,10 @@ class InspectionRepository:
 
     def save_inspection(self, inspection_data: schemas.InspectionCreate):
         """Speichert ein Prüfergebnis."""
-        db_inspection = models.Inspection(**inspection_data.model_dump())
+        data = inspection_data.model_dump()
+        if data.get("actual_dots") is not None:
+            data["actual_dots"] = json.dumps(data["actual_dots"])
+        db_inspection = models.Inspection(**data)
         self.db.add(db_inspection)
         self.db.commit()
         self.db.refresh(db_inspection)
