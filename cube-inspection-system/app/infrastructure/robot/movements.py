@@ -45,3 +45,23 @@ def get_capture_at() -> list:
     if isinstance(val, str):
         return [val] if val else []
     return val
+
+def get_sort_ok_sequence() -> list:
+    """Gibt die Sortier-Sequenz für OK-Würfel zurück (über Box, vor Box)."""
+    config = load_config()
+    return config.get("sort_ok_sequence", [])
+
+def get_sort_ok_exit() -> str:
+    """Gibt die Exit-Position nach OK-Sortierung zurück."""
+    config = load_config()
+    return config.get("sort_ok_exit")
+
+def get_sort_nok_sequence() -> list:
+    """Gibt die Sortier-Sequenz für NOK-Würfel zurück (über Box, vor Box)."""
+    config = load_config()
+    return config.get("sort_nok_sequence", [])
+
+def get_sort_nok_exit() -> str:
+    """Gibt die Exit-Position nach NOK-Sortierung zurück."""
+    config = load_config()
+    return config.get("sort_nok_exit")

@@ -1,9 +1,14 @@
-# API schemas
+# ====================================================================
+# IMPORTS
+# ====================================================================
 import json
 from pydantic import BaseModel, field_validator
 from datetime import datetime
 from typing import Optional, List
 
+# ====================================================================
+# CONFIGURATION SCHEMAS
+# ====================================================================
 class ConfigurationCreate(BaseModel):
     target_color_left: str
     target_color_right: str
@@ -25,6 +30,10 @@ class ConfigurationCreate(BaseModel):
                 "target_dots": [1, 2, 3]
             }
         }
+
+# ====================================================================
+# INSPECTION SCHEMAS
+# ====================================================================
 class InspectionCreate(BaseModel):
     config_id: int
     actual_color_left: Optional[str] = None

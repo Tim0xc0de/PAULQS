@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from app.infrastructure.database.db import SessionLocal
 from app.infrastructure.database.repository import InspectionRepository
 from app.infrastructure.robot.movements import CONFIG_PATH
-from app.domain import models
+from app.infrastructure.database import models
 
 router = APIRouter()
 
@@ -62,6 +62,126 @@ def get_side_image(side: int, image_type: str):
     if os.path.exists(filepath):
         return FileResponse(filepath, media_type="image/jpeg")
     return JSONResponse({"error": "Kein Bild vorhanden"}, status_code=404)
+
+
+@router.get("/system-logs")
+def get_system_logs(module: str = None, level: str = None, limit: int = 200, db: Session = Depends(get_db)):
+    """Gibt System-Logs zurueck, optional gefiltert nach Modul und Level."""
+    query = db.query(models.SystemLog).order_by(models.SystemLog.timestamp.desc())
+    if module:
+        query = query.filter(models.SystemLog.module == module)
+    if level:
+        query = query.filter(models.SystemLog.level == level)
+    logs = query.limit(limit).all()
+    return [
+        {
+            "id": log.id,
+            "module": log.module,
+            "level": log.level,
+            "message": log.message,
+            "timestamp": log.timestamp.isoformat() if log.timestamp else None,
+        }
+        for log in logs
+    ]
+
+
+@router.get("/inspection-history")
+def get_inspection_history(limit: int = 30, db: Session = Depends(get_db)):
+    """Gibt die letzten N Inspektionen als Liste zurück (für Historie-Grafiken)."""
+    repo = InspectionRepository(db)
+    inspections = repo.get_all_inspections(limit=limit)
+    result = []
+    for insp in reversed(inspections):
+        actual_dots = json.loads(insp.actual_dots) if insp.actual_dots else None
+        result.append({
+            "id": insp.id,
+            "timestamp": insp.timestamp.isoformat() if insp.timestamp else None,
+            "is_ok": insp.is_ok,
+            "actual_dots": actual_dots,
+            "confidence": insp.confidence,
+        })
+    return result
+
+
+@router.get("/db-tables")
+def get_db_tables(db: Session = Depends(get_db)):
+    """Gibt eine Übersicht aller Datenbank-Tabellen mit Zeilenanzahl zurück."""
+    tables = []
+    for model, name in [
+        (models.Configuration, "configurations"),
+        (models.Inspection, "inspections"),
+        (models.SystemLog, "system_logs"),
+    ]:
+        count = db.query(model).count()
+        tables.append({"name": name, "count": count})
+    return tables
+
+
+@router.get("/db-table/{table_name}")
+def get_db_table_data(table_name: str, limit: int = 50, offset: int = 0, db: Session = Depends(get_db)):
+    """Gibt die Daten einer Tabelle zurück (paginiert)."""
+    table_map = {
+        "configurations": models.Configuration,
+        "inspections": models.Inspection,
+        "system_logs": models.SystemLog,
+    }
+    model = table_map.get(table_name)
+    if not model:
+        return JSONResponse({"error": "Tabelle nicht gefunden"}, status_code=404)
+
+    total = db.query(model).count()
+    rows = db.query(model).order_by(model.id.desc()).offset(offset).limit(limit).all()
+
+    # Spalten aus Model extrahieren
+    columns = [c.name for c in model.__table__.columns]
+
+    data = []
+    for row in rows:
+        item = {}
+        for col in columns:
+            val = getattr(row, col)
+            if hasattr(val, 'isoformat'):
+                val = val.isoformat()
+            item[col] = val
+        data.append(item)
+
+    return {"table": table_name, "columns": columns, "rows": data, "total": total, "limit": limit, "offset": offset}
+
+
+@router.delete("/db-table/{table_name}")
+def clear_db_table(table_name: str, db: Session = Depends(get_db)):
+    """Löscht alle Einträge einer Tabelle."""
+    table_map = {
+        "configurations": models.Configuration,
+        "inspections": models.Inspection,
+        "system_logs": models.SystemLog,
+    }
+    model = table_map.get(table_name)
+    if not model:
+        return JSONResponse({"error": "Tabelle nicht gefunden"}, status_code=404)
+    count = db.query(model).count()
+    db.query(model).delete()
+    db.commit()
+    return {"status": "success", "deleted": count, "table": table_name}
+
+
+@router.delete("/db-table/{table_name}/{row_id}")
+def delete_db_row(table_name: str, row_id: int, db: Session = Depends(get_db)):
+    """Löscht einen einzelnen Eintrag aus einer Tabelle."""
+    table_map = {
+        "configurations": models.Configuration,
+        "inspections": models.Inspection,
+        "system_logs": models.SystemLog,
+    }
+    model = table_map.get(table_name)
+    if not model:
+        return JSONResponse({"error": "Tabelle nicht gefunden"}, status_code=404)
+    row = db.query(model).filter(model.id == row_id).first()
+    if not row:
+        return JSONResponse({"error": "Eintrag nicht gefunden"}, status_code=404)
+    db.delete(row)
+    db.commit()
+    return {"status": "success", "deleted_id": row_id, "table": table_name}
 
 
 @router.get("/last-inspection")

@@ -2,20 +2,22 @@ from pyniryo import NiryoRobot
 import cv2
 import numpy as np
 
-# --- Parameter ---
+# --- Parameter (gleich wie detection.py) ---
 MIN_CUBE_AREA = 2000
 MAX_CUBE_RATIO = 0.4
-MIN_DOT_AREA = 15
-MAX_DOT_AREA = 500
-MIN_CIRCULARITY = 0.35
-MIN_SATURATION = 60      # Sättigung: farbige Würfel > Hintergrund/Greifer
-MIN_VALUE = 50            # Minimale Helligkeit (Schwarz ausschließen)
+MIN_DOT_AREA = 30
+MAX_DOT_AREA = 800
+MIN_CIRCULARITY = 0.45
 
-# 1. Verbindung herstellen (IP anpassen, falls nötig)
+# HSV-Grenzen für Orange (gleich wie image_processing.py)
+ORANGE_LOWER = np.array([5, 150, 120])
+ORANGE_UPPER = np.array([25, 255, 255])
+
+# 1. Verbindung herstellen
 robot_ip = "10.10.10.10"
 robot = NiryoRobot(robot_ip)
 
-print("Starte Objekterkennung (Würfel + Augenzahlen, farbunabhängig)...")
+print("Starte Objekterkennung (RETR_CCOMP Hierarchie-Ansatz)...")
 print("Drücke 'q' im Bildfenster, um das Programm zu beenden.")
 
 try:
@@ -33,78 +35,81 @@ try:
             h_img, w_img = img.shape[:2]
             max_area = h_img * w_img * MAX_CUBE_RATIO
 
-            # A) Farbunabhängige Maske: alles mit Sättigung = farbiger Würfel
-            #    Hintergrund (weiß/grau) und Greifer (Metall) haben niedrige Sättigung
+            # A) Orange-Maske mit 5x5 MORPH_CLOSE (schließt Ritzen, erhält Augen)
             hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-            color_mask = cv2.inRange(hsv,
-                                     np.array([0, MIN_SATURATION, MIN_VALUE]),
-                                     np.array([180, 255, 255]))
-            morph_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
-            color_mask = cv2.morphologyEx(color_mask, cv2.MORPH_CLOSE, morph_kernel)
-            color_mask = cv2.morphologyEx(color_mask, cv2.MORPH_OPEN, morph_kernel)
+            mask = cv2.inRange(hsv, ORANGE_LOWER, ORANGE_UPPER)
+            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+            mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+            mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
 
-            # B) Würfel-Kontur finden (größte passende farbige Fläche)
-            contours, _ = cv2.findContours(color_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            # B) Konturen MIT Hierarchie (RETR_CCOMP: außen + Löcher)
+            contours, hierarchy = cv2.findContours(
+                mask, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE
+            )
 
-            best = None
-            best_area = 0
-            for c in contours:
-                area = cv2.contourArea(c)
-                if area < MIN_CUBE_AREA or area > max_area:
-                    continue
-                bx, by, bw, bh = cv2.boundingRect(c)
-                aspect = bw / bh if bh > 0 else 0
-                if 0.3 < aspect < 3.0 and area > best_area:
-                    best = c
-                    best_area = area
+            dot_count = 0
+            cube_found = False
 
-            if best is not None:
-                x, y, w, h = cv2.boundingRect(best)
+            if contours and hierarchy is not None:
+                hierarchy = hierarchy[0]
 
-                # Grünes Rechteck um den Würfel zeichnen
-                cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 2)
+                # Würfel = größte äußere Kontur (kein Parent)
+                cube_idx = -1
+                cube_area = 0
+                for i in range(len(contours)):
+                    if hierarchy[i][3] != -1:
+                        continue
+                    area = cv2.contourArea(contours[i])
+                    if area < MIN_CUBE_AREA or area > max_area:
+                        continue
+                    bx, by, bw, bh = cv2.boundingRect(contours[i])
+                    aspect = bw / bh if bh > 0 else 0
+                    if 0.3 < aspect < 3.0 and area > cube_area:
+                        cube_idx = i
+                        cube_area = area
 
-                # C) Augen zählen — NUR innerhalb der farbigen Fläche (Greifer ausschließen!)
-                roi_mask = color_mask[y:y+h, x:x+w]
-                fill_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7))
-                roi_mask_filled = cv2.dilate(roi_mask, fill_kernel, iterations=2)
+                if cube_idx != -1:
+                    cube_found = True
+                    x, y, w, h = cv2.boundingRect(contours[cube_idx])
 
-                gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-                roi_gray = gray[y:y+h, x:x+w]
+                    # Grünes Rechteck um den Würfel
+                    cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 2)
 
-                # Adaptive Schwellwertbildung: funktioniert bei jeder Würfelfarbe,
-                # da sie lokal dunkle Stellen relativ zur Umgebung erkennt
-                thresh = cv2.adaptiveThreshold(
-                    roi_gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-                    cv2.THRESH_BINARY_INV, 31, 10)
-                dark_on_cube = cv2.bitwise_and(thresh, roi_mask_filled)
+                    # Augen = innere Konturen (Kinder) des Würfels
+                    # Schritt 1: Alle Kandidaten sammeln
+                    candidates = []
+                    child_idx = hierarchy[cube_idx][2]
+                    while child_idx != -1:
+                        area = cv2.contourArea(contours[child_idx])
+                        perimeter = cv2.arcLength(contours[child_idx], True)
+                        circ = (4 * np.pi * area / (perimeter ** 2)) if perimeter > 0 else 0
+                        if MIN_DOT_AREA < area < MAX_DOT_AREA and circ > MIN_CIRCULARITY:
+                            candidates.append((area, contours[child_idx]))
+                            print(f"  Kandidat: area={area:.0f}, circ={circ:.2f}")
+                        child_idx = hierarchy[child_idx][0]
 
-                # Konturen der Punkte finden
-                dot_contours, _ = cv2.findContours(dark_on_cube, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                    # Schritt 2: Ausreißer entfernen
+                    if len(candidates) > 2:
+                        median_area = float(np.median([a for a, _ in candidates]))
+                        filtered = [(a, c) for a, c in candidates if a > median_area * 0.4]
+                        print(f"  Median={median_area:.0f}, {len(candidates)} Kandidaten -> {len(filtered)} nach Filter")
+                    else:
+                        filtered = candidates
 
-                dot_count = 0
-                for dot in dot_contours:
-                    area = cv2.contourArea(dot)
-                    if MIN_DOT_AREA < area < MAX_DOT_AREA:
-                        perimeter = cv2.arcLength(dot, True)
-                        if perimeter > 0:
-                            circ = 4 * np.pi * area / (perimeter * perimeter)
-                            if circ > MIN_CIRCULARITY:
-                                dot_count += 1
-                                # Roten Rahmen um erkannten Punkt zeichnen
-                                dx, dy_, dw, dh = cv2.boundingRect(dot)
-                                cv2.rectangle(img, (x+dx, y+dy_), (x+dx+dw, y+dy_+dh), (0, 0, 255), 1)
+                    for area, cont in filtered:
+                        dot_count += 1
+                        dx, dy_, dw, dh = cv2.boundingRect(cont)
+                        cv2.rectangle(img, (dx, dy_), (dx+dw, dy_+dh), (0, 0, 255), 1)
 
-                # Ergebnis über den Würfel schreiben
-                text = f"Wuerfel! Augen: {dot_count}"
-                cv2.putText(img, text, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                    # Ergebnis über den Würfel schreiben
+                    text = f"Augen: {dot_count}"
+                    cv2.putText(img, text, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
+                    cv2.putText(mask, text, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (180,), 2)
+                    print(f"Augen erkannt: {dot_count}")
 
             # Bilder anzeigen
-            cv2.imshow("Logitech Wuerfel Erkennung", img)
-
-            # Hilfreich zum Debuggen:
-            # cv2.imshow("Farb-Maske", color_mask)
-            # cv2.imshow("Dark on Cube", dark_on_cube)
+            cv2.imshow("Wuerfel Erkennung (RETR_CCOMP)", img)
+            cv2.imshow("Orange-Maske", mask)
 
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 print("Beende Stream...")

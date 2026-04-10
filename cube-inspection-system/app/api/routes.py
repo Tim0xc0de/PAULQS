@@ -1,29 +1,32 @@
+# ====================================================================
+# IMPORTS
+# ====================================================================
 from fastapi import APIRouter, Depends, BackgroundTasks
 from sqlalchemy.orm import Session
 from typing import List
 from pyniryo import NiryoRobot
-from app.infrastructure.database.db import SessionLocal
 from app.api import schemas
+from app.api.dependencies import get_db
 from app.infrastructure.database.repository import InspectionRepository
 from app.infrastructure.robot.robot_controller import RobotController
 from app.infrastructure.robot.movements import get_robot_ip
 from app.application.inspection_service import run_inspection
+from app.utils.logger import log
 
+# ====================================================================
+# KONFIGURATION
+# ====================================================================
 ROBOT_IP = get_robot_ip()
-
 router = APIRouter()
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
+# ====================================================================
+# API ENDPOINTS
+# ====================================================================
 @router.post("/config", response_model=schemas.ConfigurationCreate)
 def receive_config(config: schemas.ConfigurationCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     repo = InspectionRepository(db)
     result = repo.save_config(config)
+    log("API", "INFO", f"Neue Konfiguration empfangen (ID: {result.id}, Soll: {config.target_dots})")
     
     background_tasks.add_task(_run_inspection, result.id)
     
@@ -64,14 +67,51 @@ def health_check():
 @router.post("/calibration")
 def calibrate_robot():
     """Führt eine automatische Kalibrierung des Roboters durch."""
+    # ====================================================================
+    # FEHLERBEHANDLUNG
+    # ====================================================================
     try:
         robot = NiryoRobot(ROBOT_IP)
         robot.calibrate_auto()
         robot.close_connection()
+        log("API", "INFO", "Roboter erfolgreich kalibriert")
         return {"status": "success", "message": "Roboter wurde erfolgreich kalibriert"}
     except Exception as e:
+        log("API", "ERROR", f"Kalibrierung fehlgeschlagen: {str(e)}")
         return {"status": "error", "message": f"Kalibrierung fehlgeschlagen: {str(e)}"}
 
+@router.post("/learning-mode")
+async def toggle_learning_mode(request_body: dict):
+    """Aktiviert/deaktiviert den Learning Mode (Freedrive) des Roboters."""
+    enabled = request_body.get("enabled", True)
+    try:
+        robot = NiryoRobot(ROBOT_IP)
+        robot.set_learning_mode(enabled)
+        robot.close_connection()
+        state = "aktiviert" if enabled else "deaktiviert"
+        log("API", "INFO", f"Learning Mode {state}")
+        return {"status": "success", "learning_mode": enabled, "message": f"Learning Mode {state}"}
+    except Exception as e:
+        log("API", "ERROR", f"Learning Mode Fehler: {str(e)}")
+        return {"status": "error", "message": f"Learning Mode Fehler: {str(e)}"}
+
+@router.get("/current-joints")
+def get_current_joints():
+    """Liest die aktuellen Gelenkpositionen des Roboters aus."""
+    try:
+        robot = NiryoRobot(ROBOT_IP)
+        joints = robot.get_joints()
+        robot.close_connection()
+        joints_rounded = [round(j, 4) for j in joints]
+        log("API", "INFO", f"Gelenkpositionen abgerufen: {joints_rounded}")
+        return {"status": "success", "joints": joints_rounded}
+    except Exception as e:
+        log("API", "ERROR", f"Gelenkpositionen Fehler: {str(e)}")
+        return {"status": "error", "message": f"Gelenkpositionen Fehler: {str(e)}"}
+
+# ====================================================================
+# HILFSFUNKTIONEN
+# ====================================================================
 def _check_robot_connection() -> bool:
     """Prüft ob Roboter erreichbar ist."""
     try:

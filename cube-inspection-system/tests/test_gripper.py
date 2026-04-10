@@ -13,7 +13,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from pyniryo import NiryoRobot, JointsPosition
 import time
-import threading
 import cv2
 import numpy as np
 from app.infrastructure.vision.detection import detect_cube
@@ -31,14 +30,30 @@ COLLISION_CHECK_INTERVAL = 0.1     # Kollisionsprüfung alle 100ms
 # ROBOTER-POSITIONEN (in Radiant)
 # ============================================================================
 
-POS_1 = JointsPosition(-0.9077, 0.213, -1.2172, -0.0827, 0.0551, -0.0459)   # Annäherung
-POS_2 = JointsPosition(-0.9108, -0.9928, -0.6097, -0.2453, 1.382, -0.0321)  # Greifposition
-POS_4 = JointsPosition(-0.8667, 0.1085, -0.7203, -0.0413, -0.1534, -0.0474) # Anheben
-POS_5 = JointsPosition(2.5515, 0.1327, -0.7446, -0.0428, -0.155, -0.0474)   # Transport
-POS_6 = JointsPosition(2.6291, -0.4974, -0.5082, 1.1812, 1.3298, -0.503)    # Vorbereitung Kamera
-POS_7 = JointsPosition(2.4115, -0.5549, -0.2613, 1.0048, 1.0767, -0.5628)   # Vor Kamera (Seite 1)
-POS_8 = JointsPosition(2.4115, -0.5368, -0.2613, 0.9588, 1.1411, 2.528)     # Vor Kamera (Seite 2, gedreht)
-POS_10 = JointsPosition(2.5774, -0.5428, -0.4128, 1.1935, 1.3206, 2.5296)   # Ablageposition
+# Schritt 1-11: Gemeinsame Sequenz
+POS_1 = JointsPosition(-0.3842, -0.1126, -1.0294, -0.0413, -0.3068, -0.3634)  # Über Würfel
+POS_2 = JointsPosition(-0.372, -0.4837, -0.8779, 0.0292, -0.3038, -0.3619)   # Am Würfel
+# Schritt 3: Greifer zu
+POS_4 = JointsPosition(-0.3248, 0.4539, -0.9067, 0.1396, -0.8867, -0.3481)   # Hoch fahren
+POS_5 = JointsPosition(0.7495, 0.2948, -0.7446, -0.0827, -1.0416, 0.109)     # Oben rechts
+POS_6 = JointsPosition(0.1651, -0.861, -0.8688, -1.3375, 1.474, -0.0827)     # Eingang Kamera-Gehäuse
+POS_7 = JointsPosition(0.5669, -0.8943, -0.7461, -0.9279, 1.4986, -0.029)    # Vor Kamera (Seite 1)
+# Schritt 8: Foto machen
+POS_9 = JointsPosition(0.6065, -0.8504, -0.7491, -0.9601, 1.54, 2.528)       # Greifer drehen (Seite 2)
+POS_10 = JointsPosition(0.1484, -0.6792, -0.9885, -1.336, 1.3835, 2.5296)    # Raus fahren
+POS_11 = JointsPosition(0.1179, 0.0146, -0.843, 0.0415, -0.7778, 0.1182)     # Über Sortierboxen
+
+# Schritt 12-15: OK-Pfad
+POS_OK_12 = JointsPosition(-0.0555, -0.4186, -0.4583, -0.1732, -0.7885, 0.1059)  # Über OK-Box
+POS_OK_13 = JointsPosition(-0.0646, -0.5428, -0.64, -0.0658, -0.3835, 0.0031)   # Vor OK-Box
+# Schritt 14: Greifer auf
+POS_OK_15 = JointsPosition(-0.0357, -0.1747, -0.64, -0.0858, -0.3881, 0.0077)   # Letzter Schritt vor Home
+
+# Schritt 12-15: NOK-Pfad
+POS_NOK_12 = JointsPosition(0.1651, -0.3913, -0.5098, 0.1734, -0.7011, -0.0106) # Über NOK-Box
+POS_NOK_13 = JointsPosition(0.1879, -0.6216, -0.5188, 0.1059, -0.5109, 0.1504)  # Vor NOK-Box
+# Schritt 14: Greifer auf
+POS_NOK_15 = JointsPosition(0.1879, -0.6216, -0.5188, 0.1059, -0.5109, 0.1504)  # Letzter Schritt vor Home
 
 # ============================================================================
 # HELPER-FUNKTIONEN
@@ -46,11 +61,7 @@ POS_10 = JointsPosition(2.5774, -0.5428, -0.4128, 1.1935, 1.3206, 2.5296)   # Ab
 
 def safe_move(robot, position, name):
     """
-    Führt eine sichere Bewegung mit Echtzeit-Kollisionserkennung durch.
-    
-    Die Bewegung läuft in einem separaten Thread, während der Hauptthread
-    alle 100ms auf Kollisionen prüft. Bei Erkennung wird der Roboter
-    sofort gestoppt und die Gelenke bleiben gesperrt.
+    Führt eine Bewegung aus und prüft danach auf Kollision.
     
     Args:
         robot: NiryoRobot Instanz
@@ -62,48 +73,15 @@ def safe_move(robot, position, name):
     """
     print(f"[MOVE] Fahre zu {name}...")
     
-    # Fehler aus dem Bewegungs-Thread speichern
-    move_error = [None]
-    
-    def do_move():
-        """Bewegung in separatem Thread ausführen."""
-        try:
-            robot.move(position)
-        except Exception as e:
-            move_error[0] = e
-    
-    # Bewegung im Hintergrund starten
-    thread = threading.Thread(target=do_move)
-    thread.start()
-    
-    # Hauptthread: Kollision während der Bewegung prüfen
-    collision = False
-    while thread.is_alive():
-        if robot.collision_detected:
-            print(f"[KOLLISION] Notfall-Stopp bei {name}!")
-            # Learning Mode kurz aktivieren um Bewegung zu stoppen
-            robot.set_learning_mode(True)
-            time.sleep(0.1)
-            # Gelenke sofort wieder sperren
-            robot.set_learning_mode(False)
-            robot.clear_collision_detected()
-            collision = True
-            break
-        time.sleep(COLLISION_CHECK_INTERVAL)
-    
-    # Warten bis der Bewegungs-Thread beendet ist
-    thread.join(timeout=5.0)
-    
-    # Fehler aus dem Thread weiterleiten
-    if move_error[0] and not collision:
-        raise move_error[0]
-    
-    if collision:
+    try:
+        robot.move(position)
+    except Exception as e:
+        print(f"[ERROR] Bewegungsfehler bei {name}: {e}")
         return False
     
-    # Final-Check nach abgeschlossener Bewegung
+    # Kollision nach Bewegung prüfen
     if robot.collision_detected:
-        print(f"[WARNUNG] Kollision bei {name} nach Bewegung erkannt!")
+        print(f"[KOLLISION] Kollision bei {name} erkannt!")
         robot.clear_collision_detected()
         return False
     
@@ -145,17 +123,21 @@ def grip_object(robot):
 
 def test_gripper_open():
     """
-    Haupttest: Komplette Pick-and-Place Sequenz mit Würfelerkennung.
+    Haupttest: Komplette Pick-Inspect-Sort Sequenz mit Würfelerkennung.
     
     Ablauf:
-    1. Roboter initialisieren und kalibrieren
-    2. Würfel greifen (POS_1 → POS_2)
-    3. Würfel zur Kamera transportieren (POS_4 → POS_5 → POS_6 → POS_7)
-    4. Erste Seite fotografieren und erkennen
-    5. Würfel drehen (POS_8)
-    6. Zweite Seite fotografieren und erkennen
-    7. Würfel ablegen (POS_10)
-    8. Zur Home-Position zurückkehren
+    1.  Über Würfel fahren
+    2.  Am Würfel positionieren
+    3.  Greifer zu
+    4.  Hoch fahren
+    5.  Oben rechts fahren
+    6.  Eingangsposition ins Kamera-Gehäuse
+    7.  Ins Gehäuse fahren vor Kamera (Foto Seite 1)
+    8.  Foto machen
+    9.  Greifer drehen (Foto Seite 2)
+    10. Raus fahren
+    11. Über Sortierboxen fahren
+    12-16. Sortierung (OK oder NOK Pfad) + Home
     """
     robot = None
     
@@ -180,6 +162,10 @@ def test_gripper_open():
         print("[INIT] Setze Geschwindigkeit...")
         robot.set_arm_max_velocity(MAX_VELOCITY)
 
+        # Greifer aktivieren
+        print("[INIT] Aktiviere Greifer (update_tool)...")
+        robot.update_tool()
+
         # Kollisionsstatus zurücksetzen
         print("[INIT] Lösche Kollisionsstatus...")
         robot.clear_collision_detected()
@@ -189,60 +175,60 @@ def test_gripper_open():
         robot.move_to_home_pose()
 
         # ====================================================================
-        # PICK SEQUENZ
+        # SCHRITT 1-3: PICK SEQUENZ
         # ====================================================================
         
         # Greifer öffnen für Pick
         print("[GRIPPER] Öffne Greifer...")
         robot.open_gripper(speed=GRIPPER_SPEED)
 
-        # Annäherung an Würfel
-        if not safe_move(robot, POS_1, "Position 1 (Annäherung)"):
+        # Schritt 1: Über Würfel
+        if not safe_move(robot, POS_1, "Schritt 1 (über Würfel)"):
             return
 
-        # Greifposition erreichen
-        if not safe_move(robot, POS_2, "Position 2 (Greifposition)"):
+        # Schritt 2: Am Würfel
+        if not safe_move(robot, POS_2, "Schritt 2 (am Würfel)"):
             return
 
-        # Würfel greifen
+        # Schritt 3: Greifer zu
         if not grip_object(robot):
             print("[ERROR] Greifen fehlgeschlagen!")
             return
 
         # ====================================================================
-        # TRANSPORT ZUR KAMERA
+        # SCHRITT 4-7: TRANSPORT ZUR KAMERA
         # ====================================================================
         
-        # Würfel anheben
-        if not safe_move(robot, POS_4, "Position 4 (Anheben)"):
+        # Schritt 4: Hoch fahren
+        if not safe_move(robot, POS_4, "Schritt 4 (Hoch fahren)"):
             return
 
-        # Transport-Position
-        if not safe_move(robot, POS_5, "Position 5 (Transport)"):
+        # Schritt 5: Oben rechts
+        if not safe_move(robot, POS_5, "Schritt 5 (Oben rechts)"):
             return
 
-        # Vorbereitung für Kamera
-        if not safe_move(robot, POS_6, "Position 6 (Kamera-Vorbereitung)"):
+        # Schritt 6: Eingangsposition ins Kamera-Gehäuse
+        if not safe_move(robot, POS_6, "Schritt 6 (Eingang Kamera-Gehäuse)"):
+            return
+
+        # Schritt 7: Ins Gehäuse fahren vor Kamera
+        if not safe_move(robot, POS_7, "Schritt 7 (vor Kamera - Seite 1)"):
             return
 
         # ====================================================================
-        # ERSTE KAMERA-AUFNAHME
+        # SCHRITT 8: FOTO SEITE 1
         # ====================================================================
         
-        # Position vor Kamera (Seite 1)
-        if not safe_move(robot, POS_7, "Position 7 (vor Kamera - Seite 1)"):
-            return
-
         # Stabilisierungszeit vor Foto
         print("[CAMERA] Warte 3 Sekunden für Stabilisierung...")
         time.sleep(3)
         
         # Foto aufnehmen
-        print("[CAMERA] Mache Foto 1...")
+        print("[CAMERA] Schritt 8 - Mache Foto 1...")
         img_compressed = robot.get_img_compressed()
         img1 = cv2.imdecode(np.frombuffer(img_compressed, dtype=np.uint8), cv2.IMREAD_COLOR)
         
-        # Würfelerkennung durchführen
+        detection1 = None
         if img1 is not None:
             detection1 = detect_cube(img1)
             if detection1:
@@ -253,11 +239,11 @@ def test_gripper_open():
             print("[ERGEBNIS] Foto 1 - Kein Bild erhalten")
 
         # ====================================================================
-        # ZWEITE KAMERA-AUFNAHME (GEDREHT)
+        # SCHRITT 9: GREIFER DREHEN + FOTO SEITE 2
         # ====================================================================
         
-        # Würfel drehen für zweite Seite
-        if not safe_move(robot, POS_8, "Position 8 (vor Kamera - Seite 2 gedreht)"):
+        # Schritt 9: Greifer drehen für Seite 2
+        if not safe_move(robot, POS_9, "Schritt 9 (Greifer drehen - Seite 2)"):
             return
 
         # Stabilisierungszeit vor Foto
@@ -269,7 +255,7 @@ def test_gripper_open():
         img_compressed = robot.get_img_compressed()
         img2 = cv2.imdecode(np.frombuffer(img_compressed, dtype=np.uint8), cv2.IMREAD_COLOR)
         
-        # Würfelerkennung durchführen
+        detection2 = None
         if img2 is not None:
             detection2 = detect_cube(img2)
             if detection2:
@@ -280,19 +266,63 @@ def test_gripper_open():
             print("[ERGEBNIS] Foto 2 - Kein Bild erhalten")
 
         # ====================================================================
-        # PLACE SEQUENZ
+        # SCHRITT 10-11: RAUS FAHREN & ÜBER SORTIERBOXEN
         # ====================================================================
         
-        # Greifer öffnen zum Ablegen
-        print("[GRIPPER] Öffne Greifer...")
-        robot.open_gripper(speed=GRIPPER_SPEED)
-
-        # Zur Ablageposition fahren
-        if not safe_move(robot, POS_10, "Position 10 (Ablage)"):
+        # Schritt 10: Raus fahren
+        if not safe_move(robot, POS_10, "Schritt 10 (raus fahren)"):
             return
 
-        # Zurück zur Home-Position
-        print("[INIT] Fahre zur Home-Position...")
+        # Schritt 11: Über Sortierboxen fahren
+        if not safe_move(robot, POS_11, "Schritt 11 (über Sortierboxen)"):
+            return
+
+        # ====================================================================
+        # SCHRITT 12-16: SORTIERUNG (OK / NOK)
+        # ====================================================================
+        
+        # Ergebnis auswerten: Würfel ist OK wenn beide Seiten erkannt wurden
+        cube_ok = (detection1 is not None) and (detection2 is not None)
+        
+        if cube_ok:
+            print("[SORT] Würfel OK – fahre zur OK-Box")
+            
+            # Schritt 12: Über OK-Box
+            if not safe_move(robot, POS_OK_12, "Schritt 12 (über OK-Box)"):
+                return
+            
+            # Schritt 13: Vor OK-Box
+            if not safe_move(robot, POS_OK_13, "Schritt 13 (vor OK-Box)"):
+                return
+            
+            # Schritt 14: Greifer auf
+            print("[GRIPPER] Schritt 14 - Öffne Greifer...")
+            robot.open_gripper(speed=GRIPPER_SPEED)
+            
+            # Schritt 15: Letzter Schritt vor Home
+            if not safe_move(robot, POS_OK_15, "Schritt 15 (vor Home)"):
+                return
+        else:
+            print("[SORT] Würfel NOK – fahre zur NOK-Box")
+            
+            # Schritt 12: Über NOK-Box
+            if not safe_move(robot, POS_NOK_12, "Schritt 12 (über NOK-Box)"):
+                return
+            
+            # Schritt 13: Vor NOK-Box
+            if not safe_move(robot, POS_NOK_13, "Schritt 13 (vor NOK-Box)"):
+                return
+            
+            # Schritt 14: Greifer auf
+            print("[GRIPPER] Schritt 14 - Öffne Greifer...")
+            robot.open_gripper(speed=GRIPPER_SPEED)
+            
+            # Schritt 15: Letzter Schritt vor Home
+            if not safe_move(robot, POS_NOK_15, "Schritt 15 (vor Home)"):
+                return
+
+        # Schritt 16: Home-Position
+        print("[INIT] Schritt 16 - Fahre zur Home-Position...")
         robot.move_to_home_pose()
 
         print("[SUCCESS] Sequenz erfolgreich abgeschlossen!")

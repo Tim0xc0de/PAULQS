@@ -16,7 +16,23 @@ def get_orange_mask(img):
     return mask
 
 
-def get_dark_spots(gray_roi, thresh_value=80):
-    """Gibt eine Binärmaske für dunkle Stellen zurück (z.B. Würfelaugen)."""
-    _, thresh = cv2.threshold(gray_roi, thresh_value, 255, cv2.THRESH_BINARY_INV)
+def get_dark_spots(gray_roi):
+    """Gibt eine Binärmaske für dunkle Stellen zurück (z.B. Würfelaugen).
+    
+    Nutzt relativen Threshold basierend auf der Median-Helligkeit:
+    Alles deutlich dunkler als der Median = Auge.
+    Funktioniert zuverlässig mit 1-6 Augen und bei Neigung.
+    """
+    # Rauschen reduzieren
+    blurred = cv2.GaussianBlur(gray_roi, (5, 5), 0)
+    
+    # Relativer Threshold: Median der Oberfläche minus Offset
+    median_val = int(np.median(blurred))
+    thresh_val = max(30, median_val - 50)
+    _, thresh = cv2.threshold(blurred, thresh_val, 255, cv2.THRESH_BINARY_INV)
+    
+    # Kleine Störungen entfernen
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+    thresh = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel)
+    
     return thresh

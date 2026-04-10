@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PAUL - Robot Config Dashboard</title>
+    <title>PAUL - Dashboard</title>
     <style>
         :root {
             --bg: #f8fafc; --card: #ffffff; --border: #e2e8f0;
@@ -28,12 +28,12 @@
         }
         .topbar h1 { font-size: 1.2rem; font-weight: 700; }
         .topbar h1 span { color: var(--light); font-weight: 400; font-size: 0.85rem; margin-left: 6px; }
-        .topbar-actions { display: flex; gap: 8px; align-items: center; }
+        .topbar-right { display: flex; gap: 8px; align-items: center; }
 
         .status-dot { width: 8px; height: 8px; border-radius: 50%; }
         .status-dot.connected { background: var(--green); box-shadow: 0 0 6px rgba(34,197,94,0.5); }
         .status-dot.disconnected { background: var(--red); box-shadow: 0 0 6px rgba(239,68,68,0.5); }
-        .status-text { font-size: 0.75rem; color: var(--muted); font-weight: 600; display: flex; align-items: center; gap: 6px; margin-right: 12px; }
+        .status-text { font-size: 0.75rem; color: var(--muted); font-weight: 600; display: flex; align-items: center; gap: 6px; }
 
         .btn {
             display: inline-flex; align-items: center; gap: 6px;
@@ -50,6 +50,8 @@
         .btn-red { background: #fef2f2; color: var(--red); border: 1px solid #fecaca; }
         .btn-red:hover { background: #fee2e2; }
         .btn-sm { padding: 5px 10px; font-size: 0.75rem; }
+        .btn-amber { background: var(--amber); color: #fff; }
+        .btn-amber:hover { background: #d97706; }
 
         .container { max-width: 1200px; margin: 0 auto; padding: 28px 32px; }
         .section { margin-bottom: 28px; }
@@ -63,7 +65,8 @@
             border-radius: 99px; font-size: 0.7rem;
         }
 
-        .settings-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+        /* --- Config Tab: Settings --- */
+        .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
         .setting-box {
             background: var(--card); border: 1px solid var(--border); border-radius: 12px;
             padding: 16px; display: flex; flex-direction: column; gap: 4px;
@@ -77,6 +80,7 @@
         .setting-input:focus { outline: none; border-color: var(--blue); background: #fff; }
         .setting-value { font-size: 1.1rem; font-weight: 800; color: var(--text); }
 
+        /* --- Config Tab: Pipeline --- */
         .pipeline-card {
             background: var(--card); border: 1px solid var(--border); border-radius: 16px;
             padding: 24px; overflow-x: auto;
@@ -88,63 +92,125 @@
         .pipeline-track { display: flex; align-items: flex-start; gap: 0; min-width: max-content; padding: 8px 0; }
 
         .p-node {
-            display: flex; flex-direction: column; align-items: center; gap: 8px;
-            min-width: 80px; cursor: grab; user-select: none;
+            display: flex; flex-direction: column; align-items: center; gap: 6px;
+            min-width: 62px; max-width: 72px; cursor: grab; user-select: none;
         }
         .p-node.dragging { opacity: 0.3; transform: scale(0.95); }
         .p-node.drag-over .p-box { box-shadow: 0 0 0 3px rgba(59,130,246,0.3); border-color: var(--blue); }
         .p-box {
-            width: 64px; height: 64px; border-radius: 14px; border: 2px solid var(--border);
+            width: 56px; height: 56px; border-radius: 12px; border: 2px solid var(--border);
             background: var(--card); display: flex; flex-direction: column;
             align-items: center; justify-content: center; transition: all 0.15s;
             position: relative;
         }
         .p-box:hover { transform: translateY(-3px); box-shadow: 0 6px 16px rgba(0,0,0,0.08); }
-        .p-box .num { font-size: 1.2rem; font-weight: 900; color: var(--text); line-height: 1; }
-        .p-box .label { font-size: 0.5rem; color: var(--light); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; }
+        .p-box .num { font-size: 1rem; font-weight: 900; color: var(--text); line-height: 1; }
+        .p-box .label { font-size: 0.45rem; color: var(--light); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 700; }
+        .p-node-name { font-size: 0.55rem; color: var(--muted); font-weight: 600; max-width: 68px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; }
         .p-box.close-box { background: #f0fdf4; border-color: #86efac; }
-        .p-box.close-box::before { content: ''; position: absolute; top: -5px; right: -5px; width: 16px; height: 16px; background: var(--green); border-radius: 50%; border: 2px solid var(--card); }
+        .p-box.close-box::before { content: ''; position: absolute; top: -4px; right: -4px; width: 14px; height: 14px; background: var(--green); border-radius: 50%; border: 2px solid var(--card); }
         .p-box.open-box { background: #fef2f2; border-color: #fca5a5; }
-        .p-box.open-box::before { content: ''; position: absolute; top: -5px; right: -5px; width: 16px; height: 16px; background: var(--red); border-radius: 50%; border: 2px solid var(--card); }
+        .p-box.open-box::before { content: ''; position: absolute; top: -4px; right: -4px; width: 14px; height: 14px; background: var(--red); border-radius: 50%; border: 2px solid var(--card); }
+        .p-box.capture-box { background: #eff6ff; border-color: #93c5fd; }
+        .p-box.capture-box::after { content: ''; position: absolute; bottom: -4px; right: -4px; width: 14px; height: 14px; background: var(--blue); border-radius: 50%; border: 2px solid var(--card); }
         .p-box.home-box { background: linear-gradient(135deg, #eff6ff, #f5f3ff); border-color: #a5b4fc; }
-        .p-tag { font-size: 0.6rem; font-weight: 700; padding: 2px 8px; border-radius: 6px; white-space: nowrap; }
+        .p-tag { font-size: 0.55rem; font-weight: 700; padding: 2px 6px; border-radius: 5px; white-space: nowrap; }
         .p-tag.close-tag { background: #dcfce7; color: #15803d; }
         .p-tag.open-tag { background: #fee2e2; color: #b91c1c; }
+        .p-tag.capture-tag { background: #dbeafe; color: #1d4ed8; }
         .p-action { margin-top: 2px; }
         .p-action select {
-            font-size: 0.65rem; padding: 3px 6px; border-radius: 6px;
+            font-size: 0.6rem; padding: 2px 4px; border-radius: 5px;
             border: 1px solid var(--border); background: var(--card); cursor: pointer;
             font-weight: 600; color: var(--muted);
         }
         .p-action select:focus { outline: none; border-color: var(--blue); }
-        .p-arrow { display: flex; align-items: center; padding-top: 20px; color: #cbd5e1; }
-        .p-arrow svg { width: 28px; height: 12px; }
+        .p-arrow { display: flex; align-items: center; padding-top: 16px; color: #cbd5e1; }
+        .p-arrow svg { width: 24px; height: 10px; }
 
-        .pos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
-        .pos-card {
-            background: var(--card); border: 1px solid var(--border); border-radius: 14px;
-            padding: 18px; transition: all 0.15s;
+        /* --- Config Tab: Position Table --- */
+        .pos-table-card {
+            background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+            overflow: hidden;
         }
-        .pos-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-        .pos-card.close-card { border-left: 4px solid var(--green); }
-        .pos-card.open-card { border-left: 4px solid var(--red); }
-        .pos-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
-        .pos-name { font-weight: 800; font-size: 1rem; display: flex; align-items: center; gap: 8px; }
-        .pos-badge { font-size: 0.65rem; font-weight: 700; padding: 3px 8px; border-radius: 6px; }
-        .pos-badge.green { background: #dcfce7; color: #15803d; }
-        .pos-badge.red { background: #fee2e2; color: #b91c1c; }
-        .joints { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
-        .joint { display: flex; flex-direction: column; gap: 3px; }
-        .joint-lbl { font-size: 0.65rem; color: var(--light); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
-        .joint-inp {
-            border: 1px solid var(--border); border-radius: 8px; padding: 7px 8px;
-            font-family: 'SF Mono', 'Courier New', monospace; font-size: 0.82rem;
-            font-weight: 600; color: var(--text); background: #f8fafc; width: 100%;
+        .pos-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+        .pos-table thead th {
+            text-align: left; padding: 12px 16px; background: #f8fafc;
+            font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em;
+            color: var(--muted); font-weight: 700; border-bottom: 1px solid var(--border);
+        }
+        .pos-table tbody td {
+            padding: 10px 16px; border-bottom: 1px solid #f1f5f9;
+            vertical-align: middle;
+        }
+        .pos-table tbody tr:last-child td { border-bottom: none; }
+        .pos-table tbody tr:hover { background: #f8fafc; }
+        .pos-table tbody tr.close-row { background: #f0fdf4; }
+        .pos-table tbody tr.close-row:hover { background: #e8fbe8; }
+        .pos-table tbody tr.open-row { background: #fef2f2; }
+        .pos-table tbody tr.open-row:hover { background: #fde8e8; }
+        .pos-step-name {
+            font-weight: 700; font-size: 0.85rem; color: var(--text);
+            display: flex; align-items: center; gap: 8px;
+        }
+        .pos-step-name input {
+            font-weight: 700; font-size: 0.85rem; color: var(--text);
+            border: 1px solid transparent; background: transparent;
+            border-radius: 6px; padding: 4px 8px; width: 180px;
             transition: all 0.15s;
         }
-        .joint-inp:focus { outline: none; border-color: var(--blue); background: #fff; box-shadow: 0 0 0 2px rgba(59,130,246,0.1); }
-        .joint-inp.edited { border-color: var(--amber); background: #fffbeb; }
+        .pos-step-name input:hover { border-color: var(--border); background: #f8fafc; }
+        .pos-step-name input:focus { outline: none; border-color: var(--blue); background: #fff; }
+        .pos-badge { font-size: 0.6rem; font-weight: 700; padding: 2px 8px; border-radius: 6px; white-space: nowrap; }
+        .pos-badge.green { background: #dcfce7; color: #15803d; }
+        .pos-badge.red { background: #fee2e2; color: #b91c1c; }
+        .pos-badge.blue { background: #dbeafe; color: #1d4ed8; }
+        .pos-values-wrap { display: flex; align-items: center; gap: 8px; }
+        .pos-values-input {
+            font-family: 'SF Mono', 'Courier New', monospace; font-size: 0.8rem;
+            font-weight: 600; color: var(--text); background: #f8fafc;
+            border: 1px solid var(--border); border-radius: 8px;
+            padding: 7px 12px; width: 100%; min-width: 340px;
+            transition: all 0.15s;
+        }
+        .pos-values-input:focus { outline: none; border-color: var(--blue); background: #fff; box-shadow: 0 0 0 2px rgba(59,130,246,0.1); }
+        .pos-values-input.edited { border-color: var(--amber); background: #fffbeb; }
+        .pos-copy-btn {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--border);
+            background: var(--card); cursor: pointer; color: var(--muted);
+            font-size: 0.75rem; transition: all 0.15s; flex-shrink: 0;
+        }
+        .pos-copy-btn:hover { background: #f1f5f9; color: var(--blue); border-color: var(--blue); }
+        .pos-copy-btn.copied { background: #dcfce7; color: #15803d; border-color: #86efac; }
+        .pos-actions { display: flex; gap: 6px; }
 
+        /* --- Config Tab: Sort/Capture Selectors --- */
+        .cfg-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .cfg-box {
+            background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+            padding: 16px; display: flex; flex-direction: column; gap: 8px;
+        }
+        .cfg-box-title { font-size: 0.7rem; color: var(--light); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+        .cfg-tag-list { display: flex; flex-wrap: wrap; gap: 6px; }
+        .cfg-tag {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 5px 12px; border-radius: 8px; font-size: 0.78rem; font-weight: 600;
+            background: #f1f5f9; color: var(--text); border: 1px solid var(--border);
+        }
+        .cfg-tag .cfg-tag-x {
+            cursor: pointer; color: var(--light); font-size: 0.9rem; line-height: 1;
+            transition: color 0.15s;
+        }
+        .cfg-tag .cfg-tag-x:hover { color: var(--red); }
+        .cfg-select {
+            border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px;
+            font-size: 0.8rem; font-weight: 600; background: var(--card); color: var(--text);
+            cursor: pointer;
+        }
+        .cfg-select:focus { outline: none; border-color: var(--blue); }
+
+        /* --- Modal --- */
         .overlay {
             display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.4);
             backdrop-filter: blur(6px); z-index: 50; align-items: center; justify-content: center;
@@ -152,7 +218,7 @@
         .overlay.open { display: flex; }
         .modal {
             background: var(--card); border-radius: 20px; padding: 28px;
-            width: 480px; max-height: 80vh; box-shadow: 0 24px 48px rgba(0,0,0,0.2);
+            width: 520px; max-height: 80vh; box-shadow: 0 24px 48px rgba(0,0,0,0.2);
             display: flex; flex-direction: column;
         }
         .modal h3 { font-size: 1rem; margin-bottom: 14px; }
@@ -174,13 +240,15 @@
         .toast.err { background: var(--red); }
 
         .loading { text-align: center; padding: 60px; color: var(--light); font-size: 0.9rem; }
+        .btn.loading-btn { pointer-events: none; opacity: 0.6; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--blue); border-radius: 50%; animation: spin 0.6s linear infinite; }
 
-        /* Healthcheck */
+        /* --- Dashboard Tab: Healthcheck --- */
         .hc-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
         .hc-card {
             background: var(--card); border: 1px solid var(--border); border-radius: 14px;
-            padding: 20px; display: flex; align-items: center; gap: 16px;
-            transition: all 0.2s;
+            padding: 20px; display: flex; align-items: center; gap: 16px; transition: all 0.2s;
         }
         .hc-card.ok { border-left: 4px solid var(--green); }
         .hc-card.fail { border-left: 4px solid var(--red); }
@@ -206,12 +274,8 @@
         .hc-overall.healthy { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
         .hc-overall.unhealthy { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
         .hc-overall.unknown { background: #f1f5f9; color: var(--light); border: 1px solid var(--border); }
-        .btn.loading-btn { pointer-events: none; opacity: 0.6; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--blue); border-radius: 50%; animation: spin 0.6s linear infinite; }
 
-        /* --- Qualitätscheck Sektion --- */
-        .qc-container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        /* --- Dashboard Tab: Inspection --- */
         .qc-image-card {
             background: var(--card); border: 1px solid var(--border); border-radius: 16px;
             padding: 20px; display: flex; flex-direction: column; gap: 12px;
@@ -221,9 +285,7 @@
             background: #0f172a; aspect-ratio: 4/3; display: flex;
             align-items: center; justify-content: center;
         }
-        .qc-image-wrap img {
-            width: 100%; height: 100%; object-fit: contain;
-        }
+        .qc-image-wrap img { width: 100%; height: 100%; object-fit: contain; }
         .qc-image-placeholder {
             color: #475569; font-size: 0.85rem; text-align: center;
             display: flex; flex-direction: column; align-items: center; gap: 10px;
@@ -243,8 +305,7 @@
             padding: 24px; display: flex; flex-direction: column; gap: 16px;
         }
         .qc-verdict {
-            display: flex; align-items: center; gap: 16px;
-            padding: 20px; border-radius: 14px;
+            display: flex; align-items: center; gap: 16px; padding: 20px; border-radius: 14px;
         }
         .qc-verdict.pass { background: linear-gradient(135deg, #f0fdf4, #dcfce7); border: 1px solid #86efac; }
         .qc-verdict.fail { background: linear-gradient(135deg, #fef2f2, #fee2e2); border: 1px solid #fca5a5; }
@@ -279,7 +340,342 @@
             font-size: 0.75rem; color: var(--light); font-weight: 600;
             padding-top: 8px; border-top: 1px solid var(--border);
         }
-        .qc-timestamp-icon { font-size: 0.9rem; }
+
+        /* --- Dashboard Tab: History Chart --- */
+        .history-card {
+            background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+            padding: 24px;
+        }
+        .history-bars { display: flex; align-items: flex-end; gap: 4px; height: 140px; }
+        .history-bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; justify-content: flex-end; cursor: pointer; }
+        .history-bar {
+            width: 100%; min-width: 12px; max-width: 28px; border-radius: 6px 6px 0 0; min-height: 8px;
+            transition: all 0.3s ease;
+        }
+        .history-bar.ok { background: linear-gradient(180deg, #4ade80, #22c55e); }
+        .history-bar.fail { background: linear-gradient(180deg, #f87171, #ef4444); }
+        .history-bar:hover { opacity: 0.8; transform: scaleY(1.05); transform-origin: bottom; }
+        .history-bar-label { font-size: 0.5rem; color: var(--light); font-weight: 600; text-align: center; writing-mode: vertical-rl; text-orientation: mixed; max-height: 40px; overflow: hidden; }
+        .history-stats { display: flex; gap: 20px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
+        .history-stat { display: flex; align-items: center; gap: 8px; }
+        .history-stat-dot { width: 10px; height: 10px; border-radius: 3px; }
+        .history-stat-label { font-size: 0.75rem; color: var(--muted); font-weight: 600; }
+        .history-stat-num { font-size: 0.85rem; font-weight: 900; }
+
+        /* --- Tab Navigation --- */
+        .tab-nav {
+            display: flex; gap: 4px; background: var(--card); border-bottom: 1px solid var(--border);
+            padding: 0 32px; position: sticky; top: 57px; z-index: 15;
+        }
+        .tab-btn {
+            padding: 12px 20px; border: none; background: none; cursor: pointer;
+            font-size: 0.82rem; font-weight: 600; color: var(--muted);
+            border-bottom: 2px solid transparent; transition: all 0.15s;
+        }
+        .tab-btn:hover { color: var(--text); background: #f8fafc; }
+        .tab-btn.active { color: var(--blue); border-bottom-color: var(--blue); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* --- System Logs --- */
+        .log-toolbar {
+            display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 16px;
+        }
+        .log-filter {
+            padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px;
+            font-size: 0.8rem; font-weight: 600; background: var(--card);
+            color: var(--text); cursor: pointer;
+        }
+        .log-filter:focus { outline: none; border-color: var(--blue); }
+        .log-search {
+            flex: 1; min-width: 200px; padding: 8px 12px; border: 1px solid var(--border);
+            border-radius: 8px; font-size: 0.8rem; background: var(--card); color: var(--text);
+        }
+        .log-search:focus { outline: none; border-color: var(--blue); }
+        .log-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+        .log-stat-card {
+            background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+            padding: 16px; display: flex; align-items: center; gap: 14px;
+        }
+        .log-stat-icon {
+            width: 44px; height: 44px; border-radius: 10px;
+            display: flex; align-items: center; justify-content: center; font-size: 1.2rem; flex-shrink: 0;
+        }
+        .log-stat-icon.total { background: #eff6ff; }
+        .log-stat-icon.info { background: #eff6ff; }
+        .log-stat-icon.warn { background: #fffbeb; }
+        .log-stat-icon.error { background: #fef2f2; }
+        .log-stat-num { font-size: 1.5rem; font-weight: 900; }
+        .log-stat-label { font-size: 0.7rem; color: var(--muted); font-weight: 600; text-transform: uppercase; }
+        .log-chart-card {
+            background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+            padding: 20px; margin-bottom: 20px;
+        }
+        .log-chart-title {
+            font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em;
+            color: var(--muted); font-weight: 700; margin-bottom: 14px;
+        }
+        .log-bars { display: flex; align-items: flex-end; gap: 6px; height: 120px; }
+        .log-bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; justify-content: flex-end; }
+        .log-bar { width: 100%; border-radius: 6px 6px 0 0; min-height: 4px; transition: height 0.4s ease; }
+        .log-bar.info-bar { background: linear-gradient(180deg, #60a5fa, #3b82f6); }
+        .log-bar.warn-bar { background: linear-gradient(180deg, #fbbf24, #f59e0b); }
+        .log-bar.error-bar { background: linear-gradient(180deg, #f87171, #ef4444); }
+        .log-bar-label { font-size: 0.6rem; color: var(--light); font-weight: 700; text-align: center; white-space: nowrap; }
+        .log-table-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+        .log-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+        .log-table th {
+            text-align: left; padding: 12px 16px; background: #f8fafc;
+            font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em;
+            color: var(--muted); font-weight: 700; border-bottom: 1px solid var(--border);
+        }
+        .log-table td { padding: 10px 16px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+        .log-table tr:last-child td { border-bottom: none; }
+        .log-table tr:hover { background: #f8fafc; }
+        .log-level-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 700; }
+        .log-level-badge.info { background: #eff6ff; color: #2563eb; }
+        .log-level-badge.warning { background: #fffbeb; color: #d97706; }
+        .log-level-badge.error { background: #fef2f2; color: #dc2626; }
+        .log-module-badge { display: inline-block; padding: 3px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 700; background: #f1f5f9; color: var(--muted); }
+        .log-module-badge.robot { background: #f5f3ff; color: #7c3aed; }
+        .log-module-badge.vision { background: #ecfdf5; color: #059669; }
+        .log-module-badge.inspection { background: #eff6ff; color: #2563eb; }
+        .log-module-badge.sorting { background: #fffbeb; color: #d97706; }
+        .log-module-badge.api { background: #fdf2f8; color: #db2777; }
+        .log-module-badge.database { background: #f0fdf4; color: #16a34a; }
+        .log-msg { font-family: 'SF Mono', 'Courier New', monospace; font-size: 0.78rem; color: var(--text); word-break: break-word; }
+        .log-time { font-size: 0.75rem; color: var(--light); white-space: nowrap; font-weight: 500; }
+        .log-empty { text-align: center; padding: 48px 20px; color: var(--light); font-size: 0.85rem; }
+        .log-empty-icon { font-size: 2.5rem; opacity: 0.3; margin-bottom: 10px; }
+
+        /* --- API Playground --- */
+        .api-grid { display: grid; grid-template-columns: 340px 1fr; gap: 20px; min-height: 500px; }
+        .api-sidebar {
+            background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+            overflow: hidden; display: flex; flex-direction: column;
+        }
+        .api-sidebar-title {
+            padding: 16px 20px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.06em; color: var(--muted); border-bottom: 1px solid var(--border);
+            background: #f8fafc;
+        }
+        .api-endpoint-list { flex: 1; overflow-y: auto; }
+        .api-ep {
+            padding: 14px 20px; cursor: pointer; border-bottom: 1px solid #f1f5f9;
+            display: flex; align-items: center; gap: 10px; transition: all 0.12s;
+        }
+        .api-ep:hover { background: #f8fafc; }
+        .api-ep.active { background: #eff6ff; border-left: 3px solid var(--blue); }
+        .api-ep-method {
+            font-size: 0.65rem; font-weight: 800; padding: 3px 8px; border-radius: 5px;
+            font-family: 'SF Mono', 'Courier New', monospace; flex-shrink: 0; min-width: 44px; text-align: center;
+        }
+        .api-ep-method.get { background: #dcfce7; color: #15803d; }
+        .api-ep-method.post { background: #dbeafe; color: #1d4ed8; }
+        .api-ep-method.put { background: #fef3c7; color: #b45309; }
+        .api-ep-method.delete { background: #fee2e2; color: #b91c1c; }
+        .api-ep-info { flex: 1; min-width: 0; }
+        .api-ep-path { font-size: 0.82rem; font-weight: 700; color: var(--text); font-family: 'SF Mono', 'Courier New', monospace; }
+        .api-ep-desc { font-size: 0.7rem; color: var(--light); font-weight: 500; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        .api-main {
+            background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+            display: flex; flex-direction: column; overflow: hidden;
+        }
+        .api-main-header {
+            padding: 20px 24px; border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; gap: 12px; background: #f8fafc;
+        }
+        .api-main-header .api-ep-method { font-size: 0.75rem; padding: 5px 12px; }
+        .api-main-url {
+            flex: 1; font-family: 'SF Mono', 'Courier New', monospace; font-size: 0.9rem;
+            font-weight: 700; color: var(--text); background: var(--card); border: 1px solid var(--border);
+            border-radius: 8px; padding: 8px 14px;
+        }
+        .api-main-url:focus { outline: none; border-color: var(--blue); }
+        .api-send-btn {
+            padding: 8px 24px; border: none; border-radius: 8px; cursor: pointer;
+            font-size: 0.85rem; font-weight: 700; background: var(--blue); color: #fff;
+            transition: all 0.15s; flex-shrink: 0;
+        }
+        .api-send-btn:hover { background: #2563eb; }
+        .api-send-btn:active { transform: scale(0.97); }
+        .api-send-btn.loading { pointer-events: none; opacity: 0.6; }
+
+        .api-body-section {
+            padding: 20px 24px; flex: 1; display: flex; flex-direction: column; gap: 16px;
+            overflow-y: auto;
+        }
+        .api-section-label {
+            font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.06em; color: var(--muted); margin-bottom: 6px;
+        }
+        .api-body-editor {
+            font-family: 'SF Mono', 'Courier New', monospace; font-size: 0.82rem;
+            border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px;
+            background: #f8fafc; color: var(--text); resize: vertical; min-height: 100px;
+            line-height: 1.6; width: 100%;
+        }
+        .api-body-editor:focus { outline: none; border-color: var(--blue); background: #fff; }
+        .api-response-wrap {
+            border: 1px solid var(--border); border-radius: 10px; overflow: hidden; flex: 1; min-height: 180px;
+        }
+        .api-response-header {
+            padding: 10px 16px; background: #f8fafc; border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; gap: 12px; font-size: 0.75rem; font-weight: 600;
+        }
+        .api-status-badge {
+            padding: 3px 10px; border-radius: 6px; font-weight: 800; font-size: 0.72rem;
+            font-family: 'SF Mono', 'Courier New', monospace;
+        }
+        .api-status-badge.s2xx { background: #dcfce7; color: #15803d; }
+        .api-status-badge.s4xx { background: #fef3c7; color: #b45309; }
+        .api-status-badge.s5xx { background: #fee2e2; color: #b91c1c; }
+        .api-status-badge.serr { background: #f1f5f9; color: var(--muted); }
+        .api-response-time { color: var(--light); font-size: 0.72rem; }
+        .api-response-body {
+            padding: 16px; font-family: 'SF Mono', 'Courier New', monospace;
+            font-size: 0.8rem; line-height: 1.6; color: var(--text);
+            overflow: auto; max-height: 400px; white-space: pre-wrap; word-break: break-word;
+            background: #fff;
+        }
+        .api-response-body.empty { color: var(--light); text-align: center; padding: 40px; }
+        .api-params { display: flex; flex-direction: column; gap: 8px; }
+        .api-param-row { display: flex; gap: 8px; align-items: center; }
+        .api-param-label { font-size: 0.75rem; font-weight: 600; color: var(--muted); min-width: 80px; }
+        .api-param-input {
+            flex: 1; font-family: 'SF Mono', 'Courier New', monospace; font-size: 0.82rem;
+            border: 1px solid var(--border); border-radius: 8px; padding: 7px 12px;
+            background: #f8fafc; color: var(--text);
+        }
+        .api-param-input:focus { outline: none; border-color: var(--blue); background: #fff; }
+        .api-no-selection {
+            display: flex; align-items: center; justify-content: center; flex: 1;
+            color: var(--light); font-size: 0.9rem; text-align: center; padding: 60px;
+        }
+
+        /* --- Teach Modus --- */
+        .teach-panel {
+            background: linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%); border: 1px solid var(--border);
+            border-radius: 14px; padding: 20px; margin-bottom: 16px;
+        }
+        .teach-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+        .teach-title { font-size: 0.85rem; font-weight: 800; color: var(--text); display: flex; align-items: center; gap: 8px; }
+        .teach-title-icon { font-size: 1.1rem; }
+        .teach-desc { font-size: 0.72rem; color: var(--light); font-weight: 500; }
+        .teach-controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        .teach-toggle {
+            position: relative; width: 48px; height: 26px; border-radius: 13px;
+            background: #cbd5e1; cursor: pointer; transition: background 0.2s; border: none; flex-shrink: 0;
+        }
+        .teach-toggle.active { background: #22c55e; }
+        .teach-toggle::after {
+            content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px;
+            border-radius: 50%; background: #fff; transition: transform 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+        }
+        .teach-toggle.active::after { transform: translateX(22px); }
+        .teach-toggle-label { font-size: 0.75rem; font-weight: 700; color: var(--muted); }
+        .teach-toggle-label.on { color: #16a34a; }
+        .teach-capture-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        .teach-name-input {
+            font-family: 'SF Mono', 'Courier New', monospace; font-size: 0.82rem;
+            border: 1px solid var(--border); border-radius: 8px; padding: 7px 12px;
+            background: #fff; color: var(--text); width: 180px;
+        }
+        .teach-name-input:focus { outline: none; border-color: var(--blue); }
+        .teach-joints-display {
+            font-family: 'SF Mono', 'Courier New', monospace; font-size: 0.8rem;
+            background: #fff; border: 1px solid var(--border); border-radius: 8px;
+            padding: 7px 14px; color: var(--text); min-width: 300px; font-weight: 600;
+        }
+        .teach-capture-btn {
+            padding: 7px 18px; border: none; border-radius: 8px; cursor: pointer;
+            font-size: 0.8rem; font-weight: 700; background: var(--blue); color: #fff;
+            transition: all 0.15s;
+        }
+        .teach-capture-btn:hover { background: #2563eb; }
+        .teach-capture-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .teach-save-btn {
+            padding: 7px 18px; border: none; border-radius: 8px; cursor: pointer;
+            font-size: 0.8rem; font-weight: 700; background: var(--green); color: #fff;
+            transition: all 0.15s;
+        }
+        .teach-save-btn:hover { background: #16a34a; }
+        .teach-save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .teach-status {
+            font-size: 0.72rem; font-weight: 600; padding: 4px 10px; border-radius: 6px;
+        }
+        .teach-status.off { background: #f1f5f9; color: var(--muted); }
+        .teach-status.on { background: #dcfce7; color: #15803d; }
+
+        /* --- Database Explorer --- */
+        .db-overview { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-bottom: 24px; }
+        .db-table-card {
+            background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+            padding: 20px; cursor: pointer; transition: all 0.15s; position: relative; overflow: hidden;
+        }
+        .db-table-card:hover { border-color: var(--blue); box-shadow: 0 4px 16px rgba(59,130,246,0.08); transform: translateY(-1px); }
+        .db-table-card.active { border-color: var(--blue); background: #eff6ff; }
+        .db-table-icon { font-size: 1.6rem; margin-bottom: 10px; }
+        .db-table-name {
+            font-family: 'SF Mono', 'Courier New', monospace; font-size: 0.85rem;
+            font-weight: 700; color: var(--text); margin-bottom: 4px;
+        }
+        .db-table-count { font-size: 1.4rem; font-weight: 900; color: var(--blue); }
+        .db-table-label { font-size: 0.7rem; color: var(--light); font-weight: 600; }
+        .db-table-actions { display: flex; gap: 8px; margin-top: 12px; }
+
+        .db-data-section {
+            background: var(--card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden;
+        }
+        .db-data-header {
+            padding: 16px 20px; border-bottom: 1px solid var(--border); background: #f8fafc;
+            display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+        }
+        .db-data-title { font-size: 0.85rem; font-weight: 800; color: var(--text); font-family: 'SF Mono', 'Courier New', monospace; }
+        .db-data-info { font-size: 0.72rem; color: var(--light); font-weight: 600; }
+        .db-data-table {
+            width: 100%; border-collapse: collapse; font-size: 0.78rem;
+        }
+        .db-data-table th {
+            padding: 10px 14px; text-align: left; font-weight: 700; font-size: 0.7rem;
+            text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted);
+            background: #f8fafc; border-bottom: 1px solid var(--border); position: sticky; top: 0;
+        }
+        .db-data-table td {
+            padding: 9px 14px; border-bottom: 1px solid #f1f5f9; color: var(--text);
+            max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+            font-family: 'SF Mono', 'Courier New', monospace; font-size: 0.76rem;
+        }
+        .db-data-table tr:hover td { background: #f8fafc; }
+        .db-data-table .db-col-id { color: var(--blue); font-weight: 800; }
+        .db-data-table .db-col-bool-true { color: #16a34a; font-weight: 700; }
+        .db-data-table .db-col-bool-false { color: #dc2626; font-weight: 700; }
+        .db-data-table .db-col-null { color: var(--light); font-style: italic; }
+        .db-data-table .db-col-time { font-size: 0.72rem; color: var(--light); }
+        .db-data-scroll { overflow-x: auto; max-height: 480px; overflow-y: auto; }
+        .db-pagination {
+            padding: 14px 20px; border-top: 1px solid var(--border); background: #f8fafc;
+            display: flex; align-items: center; justify-content: space-between; gap: 12px;
+        }
+        .db-page-info { font-size: 0.75rem; color: var(--light); font-weight: 600; }
+        .db-page-btns { display: flex; gap: 6px; }
+        .db-page-btn {
+            padding: 5px 14px; border: 1px solid var(--border); border-radius: 7px;
+            background: var(--card); font-size: 0.75rem; font-weight: 700; color: var(--text);
+            cursor: pointer; transition: all 0.12s;
+        }
+        .db-page-btn:hover { border-color: var(--blue); color: var(--blue); }
+        .db-page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .db-empty-state {
+            text-align: center; padding: 50px 20px; color: var(--light);
+        }
+        .db-empty-icon { font-size: 2.5rem; opacity: 0.3; margin-bottom: 10px; }
+        .db-del-btn {
+            background: none; border: none; cursor: pointer; color: #dc2626; font-size: 0.8rem;
+            opacity: 0.5; transition: opacity 0.12s; padding: 2px 6px;
+        }
+        .db-del-btn:hover { opacity: 1; }
     </style>
 </head>
 <body>
@@ -287,19 +683,25 @@
 <div class="topbar">
     <div class="topbar-left">
         <div class="logo">P</div>
-        <h1>PAUL <span>Config Dashboard</span></h1>
+        <h1>PAUL <span>Cube Inspection System</span></h1>
     </div>
-    <div class="topbar-actions">
+    <div class="topbar-right">
         <div class="status-text">
             <div class="status-dot" id="status-dot"></div>
             <span id="status-label">Verbinde...</span>
         </div>
-        <button class="btn btn-outline" onclick="loadFromServer()">Neu laden</button>
-        <button class="btn btn-outline" onclick="showJSON()">JSON</button>
-        <button class="btn btn-green" onclick="saveToServer()">Speichern</button>
     </div>
 </div>
 
+<div class="tab-nav">
+    <button class="tab-btn active" data-tab="dashboard" onclick="switchTab('dashboard')">Dashboard</button>
+    <button class="tab-btn" data-tab="config" onclick="switchTab('config')">Konfiguration</button>
+    <button class="tab-btn" data-tab="logs" onclick="switchTab('logs')">System Logs</button>
+    <button class="tab-btn" data-tab="api" onclick="switchTab('api')">API Playground</button>
+    <button class="tab-btn" data-tab="db" onclick="switchTab('db')">Datenbank</button>
+</div>
+
+<div class="tab-content active" id="tab-dashboard">
 <div class="container">
     <div id="app-loading" class="loading">Config wird vom Server geladen...</div>
     <div id="app-content" style="display:none">
@@ -335,14 +737,13 @@
         </div>
     </div>
 
-    <!-- Qualitätscheck -->
+    <!-- Letzte Inspektion -->
     <div class="section">
         <div class="section-title" style="justify-content:space-between">
             <div style="display:flex;align-items:center;gap:8px">Letzte Inspektion</div>
             <button class="btn btn-blue btn-sm" id="qc-btn" onclick="loadInspection()">Aktualisieren</button>
         </div>
 
-        <!-- Ergebnis-Karte oben -->
         <div class="qc-details-card" style="margin-bottom:16px">
             <div class="qc-verdict none" id="qc-verdict">
                 <div class="qc-verdict-icon">&#8212;</div>
@@ -381,7 +782,6 @@
             </div>
         </div>
 
-        <!-- Bilder aller Seiten -->
         <div class="section-title">Aufnahmen pro Seite <span class="count" id="side-count">0</span></div>
         <div id="qc-sides-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;">
             <div class="qc-image-card">
@@ -395,24 +795,74 @@
         </div>
     </div>
 
+    <!-- Inspektions-Historie -->
     <div class="section">
-        <div class="section-title">Einstellungen</div>
+        <div class="section-title" style="justify-content:space-between">
+            <div style="display:flex;align-items:center;gap:8px">Inspektions-Historie <span class="count" id="hist-count">0</span></div>
+            <button class="btn btn-outline btn-sm" onclick="loadHistory()">Aktualisieren</button>
+        </div>
+        <div class="history-card">
+            <div class="history-bars" id="history-bars">
+                <div style="width:100%;text-align:center;color:var(--light);font-size:0.8rem;padding:40px 0">Keine Inspektionsdaten</div>
+            </div>
+            <div class="history-stats" id="history-stats">
+                <div class="history-stat">
+                    <div class="history-stat-dot" style="background:var(--green)"></div>
+                    <span class="history-stat-label">OK</span>
+                    <span class="history-stat-num" id="hist-ok">0</span>
+                </div>
+                <div class="history-stat">
+                    <div class="history-stat-dot" style="background:var(--red)"></div>
+                    <span class="history-stat-label">NOK</span>
+                    <span class="history-stat-num" id="hist-nok">0</span>
+                </div>
+                <div class="history-stat">
+                    <div class="history-stat-dot" style="background:var(--blue)"></div>
+                    <span class="history-stat-label">Erfolgsrate</span>
+                    <span class="history-stat-num" id="hist-rate">&mdash;</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    </div>
+</div>
+</div><!-- end tab-dashboard -->
+
+<!-- ========== CONFIG TAB ========== -->
+<div class="tab-content" id="tab-config">
+<div class="container">
+    <div id="cfg-loading" class="loading">Config wird vom Server geladen...</div>
+    <div id="cfg-content" style="display:none">
+
+    <!-- Config Actions Bar -->
+    <div class="section" style="margin-bottom:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+            <div class="section-title" style="margin-bottom:0">Robot Konfiguration</div>
+            <div style="display:flex;gap:8px">
+                <button class="btn btn-outline btn-sm" onclick="loadFromServer()">Neu laden</button>
+                <button class="btn btn-outline btn-sm" onclick="showJSON()">JSON anzeigen</button>
+                <button class="btn btn-green" onclick="saveToServer()">Speichern</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Grundeinstellungen -->
+    <div class="section">
+        <div class="section-title">Grundeinstellungen</div>
         <div class="settings-grid">
             <div class="setting-box">
                 <span class="setting-label">Roboter IP</span>
                 <input class="setting-input" id="s-ip">
             </div>
             <div class="setting-box">
-                <span class="setting-label">Greifer Speed</span>
-                <input class="setting-input" id="s-speed" type="number">
-            </div>
-            <div class="setting-box">
-                <span class="setting-label">Anzahl Steps</span>
-                <div class="setting-value" id="s-count">0</div>
+                <span class="setting-label">Greifer Speed (1-1000)</span>
+                <input class="setting-input" id="s-speed" type="number" min="1" max="1000">
             </div>
         </div>
     </div>
 
+    <!-- Ablauf-Sequenz -->
     <div class="section">
         <div class="section-title">Ablauf-Sequenz <span class="count" id="seq-count">0</span></div>
         <div class="pipeline-card">
@@ -420,6 +870,7 @@
                 <div class="pipeline-legend">
                     <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div> Greifer zu</div>
                     <div class="legend-item"><div class="legend-dot" style="background:var(--red)"></div> Greifer auf</div>
+                    <div class="legend-item"><div class="legend-dot" style="background:var(--blue)"></div> Aufnahme</div>
                     <div class="legend-item"><div class="legend-dot" style="background:#a5b4fc"></div> Home</div>
                 </div>
                 <span style="font-size:0.7rem;color:var(--light)">Drag & Drop zum Umsortieren</span>
@@ -428,16 +879,250 @@
         </div>
     </div>
 
+    <!-- Aktionen & Sortierung -->
+    <div class="section">
+        <div class="section-title">Aktionen & Sortierung</div>
+        <div class="cfg-row">
+            <div class="cfg-box">
+                <span class="cfg-box-title">Aufnahme-Positionen (capture_at)</span>
+                <div class="cfg-tag-list" id="cfg-capture-tags"></div>
+                <select class="cfg-select" id="cfg-capture-add" onchange="addCaptureAt(this)">
+                    <option value="">+ Position hinzuf&uuml;gen...</option>
+                </select>
+            </div>
+            <div class="cfg-box">
+                <span class="cfg-box-title">Greifer-Aktionen</span>
+                <div style="display:flex;flex-direction:column;gap:6px">
+                    <div style="display:flex;align-items:center;gap:8px">
+                        <span style="font-size:0.75rem;font-weight:600;color:var(--muted);width:100px">Greifer ZU bei:</span>
+                        <select class="cfg-select" id="cfg-gripper-close" onchange="cfg.gripper_close_at=this.value;renderPipeline();renderPositions()" style="flex:1"></select>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px">
+                        <span style="font-size:0.75rem;font-weight:600;color:var(--muted);width:100px">Greifer AUF bei:</span>
+                        <select class="cfg-select" id="cfg-gripper-open" onchange="cfg.gripper_open_at=this.value;renderPipeline();renderPositions()" style="flex:1"></select>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="cfg-row" style="margin-top:12px">
+            <div class="cfg-box">
+                <span class="cfg-box-title">Sortierung OK</span>
+                <div class="cfg-tag-list" id="cfg-sort-ok-tags"></div>
+                <select class="cfg-select" id="cfg-sort-ok-add" onchange="addSortStep('ok',this)">
+                    <option value="">+ Step hinzuf&uuml;gen...</option>
+                </select>
+                <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+                    <span style="font-size:0.7rem;font-weight:600;color:var(--muted)">Exit-Position:</span>
+                    <select class="cfg-select" id="cfg-sort-ok-exit" onchange="cfg.sort_ok_exit=this.value" style="flex:1"></select>
+                </div>
+            </div>
+            <div class="cfg-box">
+                <span class="cfg-box-title">Sortierung NOK</span>
+                <div class="cfg-tag-list" id="cfg-sort-nok-tags"></div>
+                <select class="cfg-select" id="cfg-sort-nok-add" onchange="addSortStep('nok',this)">
+                    <option value="">+ Step hinzuf&uuml;gen...</option>
+                </select>
+                <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+                    <span style="font-size:0.7rem;font-weight:600;color:var(--muted)">Exit-Position:</span>
+                    <select class="cfg-select" id="cfg-sort-nok-exit" onchange="cfg.sort_nok_exit=this.value" style="flex:1"></select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Teach Modus -->
+    <div class="section">
+        <div class="teach-panel">
+            <div class="teach-header">
+                <div>
+                    <div class="teach-title"><span class="teach-title-icon">&#129302;</span> Teach Modus</div>
+                    <div class="teach-desc">Learning Mode aktivieren, Roboter manuell bewegen, Position direkt erfassen</div>
+                </div>
+                <div class="teach-controls">
+                    <span class="teach-toggle-label" id="teach-label">Learning Mode</span>
+                    <button class="teach-toggle" id="teach-toggle" onclick="toggleTeachMode()"></button>
+                    <span class="teach-status off" id="teach-status">Inaktiv</span>
+                </div>
+            </div>
+            <div class="teach-capture-row">
+                <input class="teach-name-input" id="teach-step-name" placeholder="Step-Name (z.B. step12_new)" spellcheck="false">
+                <button class="teach-capture-btn" id="teach-capture-btn" onclick="captureTeachPosition()">Position erfassen</button>
+                <span class="teach-joints-display" id="teach-joints-display">&mdash;</span>
+                <button class="teach-save-btn" id="teach-save-btn" onclick="saveTeachPosition()" disabled>In Config &uuml;bernehmen</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Positionen -->
     <div class="section">
         <div class="section-title" style="justify-content:space-between">
             <div style="display:flex;align-items:center;gap:8px">Positionen (Joints in Rad) <span class="count" id="pos-count">0</span></div>
-            <button class="btn btn-outline btn-sm" onclick="addStep()">+ Neuer Step</button>
+            <div style="display:flex;gap:8px;align-items:center">
+                <span style="font-size:0.7rem;color:var(--light)">Format: [J1, J2, J3, J4, J5, J6]</span>
+                <button class="btn btn-outline btn-sm" onclick="addStep()">+ Neuer Step</button>
+            </div>
         </div>
-        <div class="pos-grid" id="pos-grid"></div>
+        <div class="pos-table-card">
+            <table class="pos-table">
+                <thead>
+                    <tr>
+                        <th style="width:200px">Step-Name</th>
+                        <th>Position [J1, J2, J3, J4, J5, J6]</th>
+                        <th style="width:90px">Rolle</th>
+                        <th style="width:120px">Aktionen</th>
+                    </tr>
+                </thead>
+                <tbody id="pos-grid"></tbody>
+            </table>
+        </div>
     </div>
 
     </div>
 </div>
+</div><!-- end tab-config -->
+
+<div class="tab-content" id="tab-logs">
+<div class="container">
+
+    <!-- Stats Cards -->
+    <div class="section">
+        <div class="section-title" style="justify-content:space-between">
+            <div style="display:flex;align-items:center;gap:8px">System Logs</div>
+            <button class="btn btn-blue btn-sm" onclick="loadLogs()">Aktualisieren</button>
+        </div>
+        <div class="log-stats">
+            <div class="log-stat-card">
+                <div class="log-stat-icon total">&#128202;</div>
+                <div><div class="log-stat-num" id="log-total">0</div><div class="log-stat-label">Gesamt</div></div>
+            </div>
+            <div class="log-stat-card">
+                <div class="log-stat-icon info">&#9432;</div>
+                <div><div class="log-stat-num" id="log-info-count" style="color:var(--blue)">0</div><div class="log-stat-label">Info</div></div>
+            </div>
+            <div class="log-stat-card">
+                <div class="log-stat-icon warn">&#9888;</div>
+                <div><div class="log-stat-num" id="log-warn-count" style="color:var(--amber)">0</div><div class="log-stat-label">Warnings</div></div>
+            </div>
+            <div class="log-stat-card">
+                <div class="log-stat-icon error">&#10060;</div>
+                <div><div class="log-stat-num" id="log-error-count" style="color:var(--red)">0</div><div class="log-stat-label">Errors</div></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chart: Logs per Module -->
+    <div class="section">
+        <div class="log-chart-card">
+            <div class="log-chart-title">Logs pro Modul</div>
+            <div class="log-bars" id="log-chart-bars"></div>
+        </div>
+    </div>
+
+    <!-- Filter + Table -->
+    <div class="section">
+        <div class="log-toolbar">
+            <select class="log-filter" id="log-filter-module" onchange="filterLogs()">
+                <option value="">Alle Module</option>
+                <option value="ROBOT">ROBOT</option>
+                <option value="VISION">VISION</option>
+                <option value="INSPECTION">INSPECTION</option>
+                <option value="SORTING">SORTING</option>
+                <option value="API">API</option>
+                <option value="DATABASE">DATABASE</option>
+            </select>
+            <select class="log-filter" id="log-filter-level" onchange="filterLogs()">
+                <option value="">Alle Levels</option>
+                <option value="INFO">INFO</option>
+                <option value="WARNING">WARNING</option>
+                <option value="ERROR">ERROR</option>
+            </select>
+            <input class="log-search" id="log-search" type="text" placeholder="Nachricht durchsuchen..." oninput="filterLogs()">
+        </div>
+        <div class="log-table-card">
+            <table class="log-table">
+                <thead>
+                    <tr>
+                        <th style="width:155px">Zeitpunkt</th>
+                        <th style="width:110px">Modul</th>
+                        <th style="width:90px">Level</th>
+                        <th>Nachricht</th>
+                    </tr>
+                </thead>
+                <tbody id="log-table-body">
+                    <tr><td colspan="4" class="log-empty"><div class="log-empty-icon">&#128220;</div>Keine Logs vorhanden</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+</div><!-- end tab-logs -->
+
+<!-- ========== API PLAYGROUND TAB ========== -->
+<div class="tab-content" id="tab-api">
+<div class="container">
+    <div class="section">
+        <div class="section-title">API Playground</div>
+        <div class="api-grid">
+            <!-- Sidebar: Endpoint-Liste -->
+            <div class="api-sidebar">
+                <div class="api-sidebar-title">Endpoints</div>
+                <div class="api-endpoint-list" id="api-endpoint-list"></div>
+            </div>
+            <!-- Main: Request/Response -->
+            <div class="api-main">
+                <div id="api-main-inner">
+                    <div class="api-no-selection">
+                        <div>
+                            <div style="font-size:2rem;opacity:0.3;margin-bottom:12px">&#9889;</div>
+                            <div style="font-weight:700;margin-bottom:4px">Endpoint ausw&auml;hlen</div>
+                            <div style="font-size:0.78rem">W&auml;hle links einen API-Endpoint aus, um ihn zu testen</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</div><!-- end tab-api -->
+
+<!-- ========== DATABASE EXPLORER TAB ========== -->
+<div class="tab-content" id="tab-db">
+<div class="container">
+    <div class="section">
+        <div class="section-title" style="justify-content:space-between">
+            <span>Datenbank Explorer</span>
+            <button class="btn btn-outline btn-sm" onclick="loadDbTables()">Aktualisieren</button>
+        </div>
+        <div class="db-overview" id="db-overview">
+            <div class="db-empty-state"><div class="db-empty-icon">&#128450;</div>Lade Tabellen...</div>
+        </div>
+    </div>
+    <div class="section" id="db-data-section" style="display:none">
+        <div class="db-data-section">
+            <div class="db-data-header">
+                <span class="db-data-title" id="db-data-title"></span>
+                <span class="db-data-info" id="db-data-info"></span>
+                <span style="flex:1"></span>
+                <button class="btn btn-red btn-sm" id="db-clear-btn" onclick="clearDbTable()">Tabelle leeren</button>
+            </div>
+            <div class="db-data-scroll">
+                <table class="db-data-table">
+                    <thead id="db-data-thead"></thead>
+                    <tbody id="db-data-tbody"></tbody>
+                </table>
+            </div>
+            <div class="db-pagination">
+                <span class="db-page-info" id="db-page-info"></span>
+                <div class="db-page-btns">
+                    <button class="db-page-btn" id="db-prev-btn" onclick="dbPagePrev()" disabled>&larr; Zur&uuml;ck</button>
+                    <button class="db-page-btn" id="db-next-btn" onclick="dbPageNext()">Weiter &rarr;</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</div><!-- end tab-db -->
 
 <div class="overlay" id="modal">
     <div class="modal">
@@ -453,7 +1138,6 @@
 <div class="toast-wrap"><div class="toast" id="toast"></div></div>
 
 <script>
-const JN = ['J1 Base','J2 Shoulder','J3 Elbow','J4 Forearm','J5 Wrist','J6 Hand'];
 const API = '/dashboard/robot-config';
 let cfg = null;
 let dragNode = null;
@@ -471,20 +1155,28 @@ function setStatus(connected) {
     label.textContent = connected ? 'Verbunden mit Server' : 'Nicht verbunden';
 }
 
-/* --- Server Communication --- */
+/* ========== SERVER COMMUNICATION ========== */
 async function loadFromServer() {
     try {
         const res = await fetch(API);
         if (!res.ok) throw new Error('Server error');
         cfg = await res.json();
+        if (!cfg.capture_at) cfg.capture_at = [];
+        if (!cfg.sort_ok_sequence) cfg.sort_ok_sequence = [];
+        if (!cfg.sort_nok_sequence) cfg.sort_nok_sequence = [];
+        if (!cfg.sort_ok_exit) cfg.sort_ok_exit = '';
+        if (!cfg.sort_nok_exit) cfg.sort_nok_exit = '';
         setStatus(true);
         applyConfig();
         document.getElementById('app-loading').style.display = 'none';
         document.getElementById('app-content').style.display = 'block';
+        document.getElementById('cfg-loading').style.display = 'none';
+        document.getElementById('cfg-content').style.display = 'block';
         toast('Config geladen vom Server');
     } catch(e) {
         setStatus(false);
-        document.getElementById('app-loading').textContent = 'Server nicht erreichbar. Starte den FastAPI-Server (python app/main.py) und lade die Seite neu.';
+        document.getElementById('app-loading').textContent = 'Server nicht erreichbar. Starte den FastAPI-Server und lade die Seite neu.';
+        document.getElementById('cfg-loading').textContent = 'Server nicht erreichbar.';
         toast('Server nicht erreichbar', 'err');
     }
 }
@@ -505,12 +1197,13 @@ async function saveToServer() {
     }
 }
 
-/* --- Apply / Build --- */
+/* ========== APPLY / BUILD CONFIG ========== */
 function applyConfig() {
     document.getElementById('s-ip').value = cfg.robot_ip;
     document.getElementById('s-speed').value = cfg.gripper_speed;
     renderPipeline();
     renderPositions();
+    renderConfigSelectors();
 }
 
 function buildCfg() {
@@ -520,12 +1213,18 @@ function buildCfg() {
         positions: {}, sequence: [],
         gripper_close_at: cfg.gripper_close_at,
         gripper_open_at: cfg.gripper_open_at,
-        capture_at: cfg.capture_at
+        capture_at: cfg.capture_at || [],
+        sort_ok_sequence: cfg.sort_ok_sequence || [],
+        sort_ok_exit: cfg.sort_ok_exit || '',
+        sort_nok_sequence: cfg.sort_nok_sequence || [],
+        sort_nok_exit: cfg.sort_nok_exit || ''
     };
-    document.querySelectorAll('.pos-card').forEach(c => {
-        const s = c.dataset.step; const j = [];
-        c.querySelectorAll('.joint-inp').forEach(inp => j.push(parseFloat(inp.value) || 0));
-        out.positions[s] = j;
+    document.querySelectorAll('#pos-grid tr[data-step]').forEach(tr => {
+        const nameInput = tr.querySelector('.pos-step-name input');
+        const valInput = tr.querySelector('.pos-values-input');
+        const step = nameInput ? nameInput.value.trim() : tr.dataset.step;
+        const parsed = parsePos(valInput.value);
+        out.positions[step] = parsed || cfg.positions[tr.dataset.step] || [0,0,0,0,0,0];
     });
     document.querySelectorAll('.p-node[data-step]').forEach(n => {
         if (n.dataset.step !== 'home') out.sequence.push(n.dataset.step);
@@ -533,11 +1232,84 @@ function buildCfg() {
     return out;
 }
 
-/* --- Pipeline --- */
+/* ========== CONFIG: SELECTORS (capture_at, sort, gripper) ========== */
+function posOptions(selected) {
+    const keys = Object.keys(cfg.positions);
+    let html = '<option value="">-- keine --</option>';
+    keys.forEach(k => { html += '<option value="' + k + '"' + (k === selected ? ' selected' : '') + '>' + k + '</option>'; });
+    return html;
+}
+
+function renderConfigSelectors() {
+    // Gripper selectors
+    document.getElementById('cfg-gripper-close').innerHTML = posOptions(cfg.gripper_close_at);
+    document.getElementById('cfg-gripper-open').innerHTML = posOptions(cfg.gripper_open_at);
+
+    // Capture at tags
+    const capTags = document.getElementById('cfg-capture-tags');
+    capTags.innerHTML = (cfg.capture_at || []).map((s,i) =>
+        '<span class="cfg-tag">' + s + '<span class="cfg-tag-x" onclick="removeCaptureAt(' + i + ')">&times;</span></span>'
+    ).join('');
+    const capAdd = document.getElementById('cfg-capture-add');
+    capAdd.innerHTML = '<option value="">+ Position hinzuf\u00fcgen...</option>';
+    Object.keys(cfg.positions).forEach(k => {
+        if (!(cfg.capture_at || []).includes(k)) capAdd.innerHTML += '<option value="' + k + '">' + k + '</option>';
+    });
+
+    // Sort OK tags
+    renderSortTags('ok');
+    renderSortTags('nok');
+
+    // Sort exit selectors
+    document.getElementById('cfg-sort-ok-exit').innerHTML = posOptions(cfg.sort_ok_exit);
+    document.getElementById('cfg-sort-nok-exit').innerHTML = posOptions(cfg.sort_nok_exit);
+}
+
+function addCaptureAt(sel) {
+    if (!sel.value) return;
+    if (!cfg.capture_at) cfg.capture_at = [];
+    cfg.capture_at.push(sel.value);
+    renderConfigSelectors();
+    renderPipeline();
+}
+function removeCaptureAt(idx) {
+    cfg.capture_at.splice(idx, 1);
+    renderConfigSelectors();
+    renderPipeline();
+}
+
+function renderSortTags(type) {
+    const key = 'sort_' + type + '_sequence';
+    const arr = cfg[key] || [];
+    const container = document.getElementById('cfg-sort-' + type + '-tags');
+    container.innerHTML = arr.map((s,i) =>
+        '<span class="cfg-tag">' + s + '<span class="cfg-tag-x" onclick="removeSortStep(\'' + type + '\',' + i + ')">&times;</span></span>'
+    ).join('');
+    const addSel = document.getElementById('cfg-sort-' + type + '-add');
+    addSel.innerHTML = '<option value="">+ Step hinzuf\u00fcgen...</option>';
+    Object.keys(cfg.positions).forEach(k => {
+        addSel.innerHTML += '<option value="' + k + '">' + k + '</option>';
+    });
+}
+function addSortStep(type, sel) {
+    if (!sel.value) return;
+    const key = 'sort_' + type + '_sequence';
+    if (!cfg[key]) cfg[key] = [];
+    cfg[key].push(sel.value);
+    renderConfigSelectors();
+}
+function removeSortStep(type, idx) {
+    const key = 'sort_' + type + '_sequence';
+    cfg[key].splice(idx, 1);
+    renderConfigSelectors();
+}
+
+/* ========== PIPELINE ========== */
 function renderPipeline() {
     const track = document.getElementById('track');
     track.innerHTML = '';
     document.getElementById('seq-count').textContent = cfg.sequence.length;
+    const captureSet = new Set(cfg.capture_at || []);
 
     cfg.sequence.forEach((step, i) => {
         if (i > 0) {
@@ -553,26 +1325,21 @@ function renderPipeline() {
 
         let bc = 'p-box';
         if (step === cfg.gripper_close_at) bc += ' close-box';
-        if (step === cfg.gripper_open_at) bc += ' open-box';
+        else if (step === cfg.gripper_open_at) bc += ' open-box';
+        else if (captureSet.has(step)) bc += ' capture-box';
 
-        let tag = '';
-        if (step === cfg.gripper_close_at) tag = '<span class="p-tag close-tag">Greifen</span>';
-        if (step === cfg.gripper_open_at) tag = '<span class="p-tag open-tag">Loslassen</span>';
+        let tags = '';
+        if (step === cfg.gripper_close_at) tags += '<span class="p-tag close-tag">Greifen</span>';
+        if (step === cfg.gripper_open_at) tags += '<span class="p-tag open-tag">Loslassen</span>';
+        if (captureSet.has(step)) tags += '<span class="p-tag capture-tag">Foto</span>';
 
-        const num = step.replace('step','');
-        let selClose = step === cfg.gripper_close_at ? 'selected' : '';
-        let selOpen = step === cfg.gripper_open_at ? 'selected' : '';
+        const num = (i + 1);
+        const shortName = step.length > 10 ? step.substring(0, 8) + '..' : step;
 
         node.innerHTML = `
-            <div class="${bc}"><span class="num">${num}</span><span class="label">Step</span></div>
-            ${tag}
-            <div class="p-action">
-                <select onchange="setGripper('${step}',this.value)">
-                    <option value="">Aktion</option>
-                    <option value="close" ${selClose}>Greifer zu</option>
-                    <option value="open" ${selOpen}>Greifer auf</option>
-                </select>
-            </div>
+            <div class="${bc}" title="${step}"><span class="num">${num}</span><span class="label">Step</span></div>
+            <span class="p-node-name" title="${step}">${shortName}</span>
+            ${tags}
         `;
 
         node.addEventListener('dragstart', e => { dragNode = node; node.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; });
@@ -601,74 +1368,117 @@ function renderPipeline() {
     track.appendChild(home);
 }
 
-function setGripper(step, action) {
-    if (action === 'close') cfg.gripper_close_at = step;
-    else if (action === 'open') cfg.gripper_open_at = step;
-    else {
-        if (cfg.gripper_close_at === step) cfg.gripper_close_at = '';
-        if (cfg.gripper_open_at === step) cfg.gripper_open_at = '';
-    }
-    renderPipeline();
-    renderPositions();
+/* ========== POSITION TABLE ========== */
+function formatPos(vals) {
+    return '[' + vals.map(v => v.toString()).join(', ') + ']';
+}
+function parsePos(str) {
+    const clean = str.replace(/[\[\]]/g, '').trim();
+    const parts = clean.split(/[,;\s]+/).filter(s => s.length > 0);
+    if (parts.length !== 6) return null;
+    const nums = parts.map(Number);
+    if (nums.some(isNaN)) return null;
+    return nums;
 }
 
-/* --- Position Cards --- */
 function renderPositions() {
     const grid = document.getElementById('pos-grid');
     grid.innerHTML = '';
     const keys = Object.keys(cfg.positions);
-    document.getElementById('s-count').textContent = keys.length;
     document.getElementById('pos-count').textContent = keys.length;
 
     keys.forEach(step => {
         const vals = cfg.positions[step];
-        const card = document.createElement('div');
-        card.className = 'pos-card'; card.dataset.step = step;
-        if (step === cfg.gripper_close_at) card.classList.add('close-card');
-        if (step === cfg.gripper_open_at) card.classList.add('open-card');
+        const tr = document.createElement('tr');
+        tr.dataset.step = step;
+        if (step === cfg.gripper_close_at) tr.classList.add('close-row');
+        if (step === cfg.gripper_open_at) tr.classList.add('open-row');
 
-        let badge = '';
-        if (step === cfg.gripper_close_at) badge = '<span class="pos-badge green">Greifer zu</span>';
-        if (step === cfg.gripper_open_at) badge = '<span class="pos-badge red">Greifer auf</span>';
+        let badges = '';
+        if (step === cfg.gripper_close_at) badges += '<span class="pos-badge green">Greifer zu</span> ';
+        if (step === cfg.gripper_open_at) badges += '<span class="pos-badge red">Greifer auf</span> ';
+        if ((cfg.capture_at || []).includes(step)) badges += '<span class="pos-badge blue">Aufnahme</span> ';
+        if (!badges && cfg.sequence.includes(step)) badges = '<span class="pos-badge blue">Sequenz</span>';
 
-        card.innerHTML = `
-            <div class="pos-head">
-                <div class="pos-name">${step} ${badge}</div>
-                <button class="btn btn-red btn-sm" onclick="removeStep('${step}')">Entfernen</button>
-            </div>
-            <div class="joints">
-                ${vals.map((v,i) => `
-                    <div class="joint">
-                        <span class="joint-lbl">${JN[i]}</span>
-                        <input class="joint-inp" type="number" step="0.0001" value="${v}" onfocus="this.select()" onchange="this.classList.add('edited')">
-                    </div>
-                `).join('')}
-            </div>
+        const posStr = formatPos(vals);
+        tr.innerHTML = `
+            <td><div class="pos-step-name"><input value="${step}" data-orig="${step}" onchange="renameStep(this)" spellcheck="false"></div></td>
+            <td>
+                <div class="pos-values-wrap">
+                    <input class="pos-values-input" value="${posStr}" data-step="${step}"
+                           onfocus="this.select()" onchange="onPosChange(this)"
+                           spellcheck="false" placeholder="[0, 0, 0, 0, 0, 0]">
+                    <button class="pos-copy-btn" onclick="copyPos(this, '${step}')" title="Position kopieren">&#128203;</button>
+                </div>
+            </td>
+            <td>${badges}</td>
+            <td><div class="pos-actions"><button class="btn btn-red btn-sm" onclick="removeStep('${step}')">Entfernen</button></div></td>
         `;
-        grid.appendChild(card);
+        grid.appendChild(tr);
     });
 }
 
+function onPosChange(input) {
+    const parsed = parsePos(input.value);
+    if (parsed) {
+        cfg.positions[input.dataset.step] = parsed;
+        input.value = formatPos(parsed);
+        input.classList.add('edited');
+        toast('Position aktualisiert', 'info');
+    } else {
+        toast('Ung\u00fcltiges Format! Erwartet: [v1, v2, v3, v4, v5, v6]', 'err');
+        input.value = formatPos(cfg.positions[input.dataset.step]);
+    }
+}
+function copyPos(btn, step) {
+    const posStr = formatPos(cfg.positions[step]);
+    navigator.clipboard.writeText(posStr);
+    btn.classList.add('copied'); btn.innerHTML = '&#10003;';
+    setTimeout(() => { btn.classList.remove('copied'); btn.innerHTML = '&#128203;'; }, 1500);
+    toast('Kopiert: ' + posStr);
+}
+function renameStep(input) {
+    const oldName = input.dataset.orig;
+    const newName = input.value.trim();
+    if (!newName || newName === oldName) { input.value = oldName; return; }
+    if (cfg.positions[newName]) { toast('Name existiert bereits!', 'err'); input.value = oldName; return; }
+    cfg.positions[newName] = cfg.positions[oldName];
+    delete cfg.positions[oldName];
+    cfg.sequence = cfg.sequence.map(s => s === oldName ? newName : s);
+    if (cfg.gripper_close_at === oldName) cfg.gripper_close_at = newName;
+    if (cfg.gripper_open_at === oldName) cfg.gripper_open_at = newName;
+    if (cfg.capture_at) cfg.capture_at = cfg.capture_at.map(s => s === oldName ? newName : s);
+    if (cfg.sort_ok_sequence) cfg.sort_ok_sequence = cfg.sort_ok_sequence.map(s => s === oldName ? newName : s);
+    if (cfg.sort_nok_sequence) cfg.sort_nok_sequence = cfg.sort_nok_sequence.map(s => s === oldName ? newName : s);
+    if (cfg.sort_ok_exit === oldName) cfg.sort_ok_exit = newName;
+    if (cfg.sort_nok_exit === oldName) cfg.sort_nok_exit = newName;
+    renderPipeline(); renderPositions(); renderConfigSelectors();
+    toast('Umbenannt: ' + oldName + ' \u2192 ' + newName, 'info');
+}
 function addStep() {
     const n = Object.keys(cfg.positions).length + 1;
     const name = 'step' + n;
     cfg.positions[name] = [0,0,0,0,0,0];
     cfg.sequence.push(name);
-    renderPipeline(); renderPositions();
+    renderPipeline(); renderPositions(); renderConfigSelectors();
     toast('Step ' + n + ' hinzugefuegt', 'info');
 }
-
 function removeStep(step) {
     if (Object.keys(cfg.positions).length <= 1) return;
     delete cfg.positions[step];
     cfg.sequence = cfg.sequence.filter(s => s !== step);
     if (cfg.gripper_close_at === step) cfg.gripper_close_at = '';
     if (cfg.gripper_open_at === step) cfg.gripper_open_at = '';
-    renderPipeline(); renderPositions();
+    if (cfg.capture_at) cfg.capture_at = cfg.capture_at.filter(s => s !== step);
+    if (cfg.sort_ok_sequence) cfg.sort_ok_sequence = cfg.sort_ok_sequence.filter(s => s !== step);
+    if (cfg.sort_nok_sequence) cfg.sort_nok_sequence = cfg.sort_nok_sequence.filter(s => s !== step);
+    if (cfg.sort_ok_exit === step) cfg.sort_ok_exit = '';
+    if (cfg.sort_nok_exit === step) cfg.sort_nok_exit = '';
+    renderPipeline(); renderPositions(); renderConfigSelectors();
     toast(step + ' entfernt', 'info');
 }
 
-/* --- JSON Modal --- */
+/* ========== JSON MODAL ========== */
 function showJSON() {
     const c = buildCfg();
     document.getElementById('json-out').textContent = JSON.stringify(c, null, 2);
@@ -676,45 +1486,31 @@ function showJSON() {
 }
 function closeModal() { document.getElementById('modal').classList.remove('open'); }
 function copyJSON() {
-    const c = buildCfg();
-    navigator.clipboard.writeText(JSON.stringify(c, null, 2));
+    navigator.clipboard.writeText(JSON.stringify(buildCfg(), null, 2));
     toast('In Zwischenablage kopiert!');
 }
 
-/* --- Healthcheck --- */
+/* ========== HEALTHCHECK ========== */
 async function runHealthcheck() {
     const btn = document.getElementById('hc-btn');
     btn.classList.add('loading-btn');
-    btn.innerHTML = '<span class="spinner"></span> Pr&uuml;fe...';
-
-    // Reset to pending
+    btn.innerHTML = '<span class="spinner"></span> Pr\u00fcfe...';
     setHcCard('hc-robot', 'pending', 'Pr\u00fcfe...');
     setHcCard('hc-calib', 'pending', 'Pr\u00fcfe...');
     setHcCard('hc-cam', 'pending', 'Pr\u00fcfe...');
     document.getElementById('hc-overall').className = 'hc-overall unknown';
     document.getElementById('hc-overall').textContent = 'Pr\u00fcfe...';
-
     try {
         const res = await fetch('/api/healthcheck');
         if (!res.ok) throw new Error('Healthcheck failed');
         const data = await res.json();
         const c = data.components;
-
-        setHcCard('hc-robot', c.robot_connected ? 'ok' : 'fail',
-            c.robot_connected ? 'Verbunden' : 'Nicht erreichbar');
-        setHcCard('hc-calib', c.robot_calibrated ? 'ok' : 'fail',
-            c.robot_calibrated ? 'Kalibriert' : 'Kalibrierung n\u00f6tig');
-        setHcCard('hc-cam', c.camera_connected ? 'ok' : 'fail',
-            c.camera_connected ? 'Verbunden' : 'Nicht erkannt');
-
+        setHcCard('hc-robot', c.robot_connected ? 'ok' : 'fail', c.robot_connected ? 'Verbunden' : 'Nicht erreichbar');
+        setHcCard('hc-calib', c.robot_calibrated ? 'ok' : 'fail', c.robot_calibrated ? 'Kalibriert' : 'Kalibrierung n\u00f6tig');
+        setHcCard('hc-cam', c.camera_connected ? 'ok' : 'fail', c.camera_connected ? 'Verbunden' : 'Nicht erkannt');
         const ov = document.getElementById('hc-overall');
-        if (data.status === 'healthy') {
-            ov.className = 'hc-overall healthy';
-            ov.textContent = 'Healthy';
-        } else {
-            ov.className = 'hc-overall unhealthy';
-            ov.textContent = 'Unhealthy';
-        }
+        ov.className = 'hc-overall ' + (data.status === 'healthy' ? 'healthy' : 'unhealthy');
+        ov.textContent = data.status === 'healthy' ? 'Healthy' : 'Unhealthy';
         toast('Healthcheck abgeschlossen');
     } catch(e) {
         setHcCard('hc-robot', 'fail', 'Server nicht erreichbar');
@@ -724,89 +1520,68 @@ async function runHealthcheck() {
         document.getElementById('hc-overall').textContent = 'Fehler';
         toast('Healthcheck fehlgeschlagen', 'err');
     }
-
     btn.classList.remove('loading-btn');
     btn.innerHTML = 'Healthcheck starten';
 }
-
 function setHcCard(cardId, state, text) {
     const card = document.getElementById(cardId);
     card.className = 'hc-card ' + state;
-    const icon = card.querySelector('.hc-icon');
-    icon.className = 'hc-icon ' + state;
-    const status = card.querySelector('.hc-status');
-    status.className = 'hc-status ' + state;
-    status.textContent = text;
+    card.querySelector('.hc-icon').className = 'hc-icon ' + state;
+    const s = card.querySelector('.hc-status');
+    s.className = 'hc-status ' + state; s.textContent = text;
 }
 
-/* --- Qualitätscheck / Inspektion --- */
+/* ========== INSPECTION ========== */
 let qcImageMode = 'result';
 
 async function loadInspection() {
     const btn = document.getElementById('qc-btn');
     btn.classList.add('loading-btn');
     btn.innerHTML = '<span class="spinner"></span> Lade...';
-
     try {
         const res = await fetch('/dashboard/last-inspection');
         if (!res.ok) throw new Error('Keine Daten');
         const data = await res.json();
-        const insp = data.inspection;
-        const conf = data.config;
-        const sideCount = data.side_count || 0;
+        const insp = data.inspection, conf = data.config, sideCount = data.side_count || 0;
 
-        // Verdict
         const verdict = document.getElementById('qc-verdict');
         const vIcon = verdict.querySelector('.qc-verdict-icon');
         const vTitle = document.getElementById('qc-verdict-title');
         const vSub = document.getElementById('qc-verdict-sub');
 
         if (insp.is_ok) {
-            verdict.className = 'qc-verdict pass';
-            vIcon.textContent = '\u2714';
+            verdict.className = 'qc-verdict pass'; vIcon.textContent = '\u2714';
             vTitle.textContent = 'Qualit\u00e4t OK';
             vSub.textContent = 'Alle Seiten stimmen \u00fcberein (Reihenfolge egal).';
         } else {
-            verdict.className = 'qc-verdict fail';
-            vIcon.textContent = '\u2718';
+            verdict.className = 'qc-verdict fail'; vIcon.textContent = '\u2718';
             vTitle.textContent = 'Nicht bestanden';
-            if (insp.actual_dots && insp.actual_dots.length) {
-                vSub.textContent = 'Ist: [' + insp.actual_dots.join(', ') + '] \u2013 Soll: [' + (conf.target_dots || []).join(', ') + ']';
-            } else {
-                vSub.textContent = 'Kein W\u00fcrfel erkannt oder Fehler bei der Analyse.';
-            }
+            vSub.textContent = (insp.actual_dots && insp.actual_dots.length)
+                ? 'Ist: [' + insp.actual_dots.join(', ') + '] \u2013 Soll: [' + (conf.target_dots||[]).join(', ') + ']'
+                : 'Kein W\u00fcrfel erkannt oder Fehler bei der Analyse.';
         }
 
-        // Metriken
         const actualEl = document.getElementById('qc-actual-dots');
         actualEl.textContent = insp.actual_dots ? '[' + insp.actual_dots.join(', ') + ']' : '\u2014';
         actualEl.className = 'qc-metric-value' + (insp.is_ok ? ' pass' : (insp.actual_dots ? ' fail' : ''));
-
         document.getElementById('qc-target-dots').textContent = conf.target_dots ? '[' + conf.target_dots.join(', ') + ']' : '\u2014';
         document.getElementById('qc-color-left').textContent = insp.actual_color_left || '\u2014';
         document.getElementById('qc-color-left-target').textContent = 'Soll: ' + (conf.target_color_left || '\u2014');
         document.getElementById('qc-color-right').textContent = insp.actual_color_right || '\u2014';
         document.getElementById('qc-color-right-target').textContent = 'Soll: ' + (conf.target_color_right || '\u2014');
 
-        // Timestamp
         if (insp.timestamp) {
             const d = new Date(insp.timestamp);
             document.getElementById('qc-time').textContent =
-                'Inspektion #' + insp.id + ' \u2013 ' +
-                d.toLocaleDateString('de-DE') + ', ' +
+                'Inspektion #' + insp.id + ' \u2013 ' + d.toLocaleDateString('de-DE') + ', ' +
                 d.toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
         }
-
-        // Seitenbilder rendern
         renderSideImages(sideCount, insp.actual_dots);
-
         toast('Inspektionsdaten geladen');
     } catch(e) {
         toast('Keine Inspektionsdaten vorhanden', 'info');
     }
-
-    btn.classList.remove('loading-btn');
-    btn.textContent = 'Aktualisieren';
+    btn.classList.remove('loading-btn'); btn.textContent = 'Aktualisieren';
 }
 
 function renderSideImages(count, actualDots) {
@@ -816,29 +1591,22 @@ function renderSideImages(count, actualDots) {
         grid.innerHTML = '<div class="qc-image-card"><div class="qc-image-wrap"><div class="qc-image-placeholder"><span class="placeholder-icon">&#128247;</span><span>Noch keine Aufnahmen</span></div></div></div>';
         return;
     }
-    const ts = Date.now();
-    let html = '';
+    const ts = Date.now(); let html = '';
     for (let i = 1; i <= count; i++) {
         const dots = (actualDots && actualDots[i-1] !== undefined) ? actualDots[i-1] : '?';
-        html += `
-        <div class="qc-image-card">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-                <span style="font-weight:800;font-size:0.85rem">Seite ${i}</span>
-                <span style="font-size:0.75rem;font-weight:700;color:var(--muted)">Augen: ${dots}</span>
-            </div>
-            <div class="qc-image-tabs">
-                <button class="qc-tab ${qcImageMode==='result'?'active':''}" onclick="switchSideTab(${i},'result',this)">Erkennung</button>
-                <button class="qc-tab ${qcImageMode==='raw'?'active':''}" onclick="switchSideTab(${i},'raw',this)">Original</button>
-            </div>
-            <div class="qc-image-wrap" id="qc-side-${i}">
-                <img src="/dashboard/side-image/${i}/${qcImageMode}?t=${ts}" alt="Seite ${i}"
-                     onerror="this.parentNode.innerHTML='<div class=qc-image-placeholder><span class=placeholder-icon>&#128247;</span><span>Bild nicht verf\u00fcgbar</span></div>'">
-            </div>
-        </div>`;
+        html += '<div class="qc-image-card">' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">' +
+            '<span style="font-weight:800;font-size:0.85rem">Seite ' + i + '</span>' +
+            '<span style="font-size:0.75rem;font-weight:700;color:var(--muted)">Augen: ' + dots + '</span></div>' +
+            '<div class="qc-image-tabs">' +
+            '<button class="qc-tab active" onclick="switchSideTab(' + i + ',\'result\',this)">Erkennung</button>' +
+            '<button class="qc-tab" onclick="switchSideTab(' + i + ',\'raw\',this)">Original</button></div>' +
+            '<div class="qc-image-wrap" id="qc-side-' + i + '">' +
+            '<img src="/dashboard/side-image/' + i + '/result?t=' + ts + '" alt="Seite ' + i + '" ' +
+            'onerror="this.parentNode.innerHTML=\'<div class=qc-image-placeholder><span class=placeholder-icon>&#128247;</span><span>Bild nicht verf\u00fcgbar</span></div>\'"></div></div>';
     }
     grid.innerHTML = html;
 }
-
 function switchSideTab(side, type, btn) {
     const card = btn.closest('.qc-image-card');
     card.querySelectorAll('.qc-tab').forEach(t => t.classList.remove('active'));
@@ -848,9 +1616,574 @@ function switchSideTab(side, type, btn) {
     wrap.innerHTML = '<img src="/dashboard/side-image/' + side + '/' + type + '?t=' + ts + '" alt="Seite ' + side + '" onerror="this.parentNode.innerHTML=\'<div class=qc-image-placeholder><span class=placeholder-icon>&#128247;</span><span>Bild nicht verf\u00fcgbar</span></div>\'">';
 }
 
-// Init: Lade Config + Inspektion beim Start
+/* ========== HISTORY ========== */
+async function loadHistory() {
+    try {
+        const res = await fetch('/dashboard/inspection-history?limit=30');
+        if (!res.ok) throw new Error('Fehler');
+        const data = await res.json();
+        renderHistory(data);
+    } catch(e) {
+        // silent
+    }
+}
+
+function renderHistory(data) {
+    const container = document.getElementById('history-bars');
+    document.getElementById('hist-count').textContent = data.length;
+    if (data.length === 0) {
+        container.innerHTML = '<div style="width:100%;text-align:center;color:var(--light);font-size:0.8rem;padding:40px 0">Keine Inspektionsdaten</div>';
+        return;
+    }
+
+    const okCount = data.filter(d => d.is_ok).length;
+    const nokCount = data.length - okCount;
+    const rate = data.length > 0 ? Math.round((okCount / data.length) * 100) : 0;
+    document.getElementById('hist-ok').textContent = okCount;
+    document.getElementById('hist-nok').textContent = nokCount;
+    document.getElementById('hist-rate').textContent = rate + '%';
+
+    let html = '';
+    data.forEach(d => {
+        const h = d.confidence ? Math.max(20, Math.round(d.confidence * 100)) : 70;
+        const cls = d.is_ok ? 'ok' : 'fail';
+        const label = '#' + d.id;
+        const dotsTxt = d.actual_dots ? '[' + d.actual_dots.join(',') + ']' : '?';
+        html += '<div class="history-bar-col" title="Inspektion #' + d.id + ' - ' + (d.is_ok ? 'OK' : 'NOK') + ' - ' + dotsTxt + '">' +
+            '<div class="history-bar ' + cls + '" style="height:' + h + '%"></div>' +
+            '<div class="history-bar-label">' + label + '</div></div>';
+    });
+    container.innerHTML = html;
+}
+
+/* ========== TAB NAVIGATION ========== */
+function switchTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.getElementById('tab-' + tab).classList.add('active');
+    document.querySelector('.tab-btn[data-tab="' + tab + '"]').classList.add('active');
+    if (tab === 'logs' && allLogs.length === 0) loadLogs();
+    if (tab === 'db') loadDbTables();
+}
+
+/* ========== SYSTEM LOGS ========== */
+let allLogs = [];
+const MODULE_COLORS = { ROBOT:'robot', VISION:'vision', INSPECTION:'inspection', SORTING:'sorting', API:'api', DATABASE:'database' };
+const LEVEL_ICONS = { INFO:'\u2139\uFE0F', WARNING:'\u26A0\uFE0F', ERROR:'\u274C' };
+
+async function loadLogs() {
+    try {
+        const res = await fetch('/dashboard/system-logs?limit=500');
+        if (!res.ok) throw new Error('Fehler');
+        allLogs = await res.json();
+        updateLogStats(); renderLogChart(); filterLogs();
+        toast('Logs geladen (' + allLogs.length + ' Eintraege)');
+    } catch(e) { toast('Logs konnten nicht geladen werden', 'err'); }
+}
+function updateLogStats() {
+    document.getElementById('log-total').textContent = allLogs.length;
+    document.getElementById('log-info-count').textContent = allLogs.filter(l => l.level === 'INFO').length;
+    document.getElementById('log-warn-count').textContent = allLogs.filter(l => l.level === 'WARNING').length;
+    document.getElementById('log-error-count').textContent = allLogs.filter(l => l.level === 'ERROR').length;
+}
+function renderLogChart() {
+    const modules = {};
+    allLogs.forEach(l => {
+        if (!modules[l.module]) modules[l.module] = { INFO:0, WARNING:0, ERROR:0 };
+        if (modules[l.module][l.level] !== undefined) modules[l.module][l.level]++;
+    });
+    const container = document.getElementById('log-chart-bars');
+    const keys = Object.keys(modules);
+    if (keys.length === 0) { container.innerHTML = '<div style="width:100%;text-align:center;color:var(--light);font-size:0.8rem;padding:40px 0">Keine Daten</div>'; return; }
+    const maxVal = Math.max(...keys.map(k => modules[k].INFO + modules[k].WARNING + modules[k].ERROR), 1);
+    let html = '';
+    keys.forEach(mod => {
+        const m = modules[mod];
+        const infoH = Math.max((m.INFO/maxVal)*100, m.INFO>0?6:0);
+        const warnH = Math.max((m.WARNING/maxVal)*100, m.WARNING>0?6:0);
+        const errH = Math.max((m.ERROR/maxVal)*100, m.ERROR>0?6:0);
+        html += '<div class="log-bar-col">';
+        if (errH>0) html += '<div class="log-bar error-bar" style="height:'+errH+'%" title="'+m.ERROR+' Errors"></div>';
+        if (warnH>0) html += '<div class="log-bar warn-bar" style="height:'+warnH+'%" title="'+m.WARNING+' Warnings"></div>';
+        if (infoH>0) html += '<div class="log-bar info-bar" style="height:'+infoH+'%" title="'+m.INFO+' Info"></div>';
+        html += '<div class="log-bar-label">'+mod+'<br><span style="font-weight:900;font-size:0.7rem;color:var(--text)">'+(m.INFO+m.WARNING+m.ERROR)+'</span></div></div>';
+    });
+    container.innerHTML = html;
+}
+function filterLogs() {
+    let f = allLogs;
+    const m = document.getElementById('log-filter-module').value;
+    const l = document.getElementById('log-filter-level').value;
+    const s = document.getElementById('log-search').value.toLowerCase();
+    if (m) f = f.filter(x => x.module === m);
+    if (l) f = f.filter(x => x.level === l);
+    if (s) f = f.filter(x => x.message && x.message.toLowerCase().includes(s));
+    renderLogTable(f);
+}
+function renderLogTable(logs) {
+    const tbody = document.getElementById('log-table-body');
+    if (logs.length === 0) { tbody.innerHTML = '<tr><td colspan="4" class="log-empty"><div class="log-empty-icon">\uD83D\uDD0D</div>Keine Logs gefunden</td></tr>'; return; }
+    let html = '';
+    logs.forEach(l => {
+        const mc = MODULE_COLORS[l.module]||'';
+        const lc = l.level==='INFO'?'info':l.level==='WARNING'?'warning':l.level==='ERROR'?'error':'';
+        let ts = '';
+        if (l.timestamp) { const d=new Date(l.timestamp); ts=d.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'})+' '+d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit',second:'2-digit'}); }
+        html += '<tr><td class="log-time">'+ts+'</td><td><span class="log-module-badge '+mc+'">'+(l.module||'-')+'</span></td><td><span class="log-level-badge '+lc+'">'+(LEVEL_ICONS[l.level]||'')+' '+(l.level||'-')+'</span></td><td class="log-msg">'+escapeHtml(l.message||'')+'</td></tr>';
+    });
+    tbody.innerHTML = html;
+}
+function escapeHtml(text) { const d=document.createElement('div'); d.textContent=text; return d.innerHTML; }
+
+/* ========== API PLAYGROUND ========== */
+const API_ENDPOINTS = [
+    {
+        id: 'root', method: 'GET', path: '/',
+        desc: 'System Status', params: [], body: null
+    },
+    {
+        id: 'config', method: 'POST', path: '/api/config',
+        desc: 'Neue Inspektion starten',
+        params: [],
+        body: JSON.stringify({ target_color_left: "rot", target_color_right: "blau", target_dots: [1, 2, 3] }, null, 2)
+    },
+    {
+        id: 'inspections', method: 'GET', path: '/api/inspections',
+        desc: 'Inspektionen abrufen',
+        params: [{ name: 'limit', default: '10', desc: 'Max. Anzahl' }],
+        body: null
+    },
+    {
+        id: 'healthcheck', method: 'GET', path: '/api/healthcheck',
+        desc: 'System Healthcheck', params: [], body: null
+    },
+    {
+        id: 'calibration', method: 'POST', path: '/api/calibration',
+        desc: 'Roboter kalibrieren', params: [], body: null
+    },
+    {
+        id: 'learning-mode', method: 'POST', path: '/api/learning-mode',
+        desc: 'Learning Mode (Freedrive) umschalten',
+        params: [],
+        body: JSON.stringify({ enabled: true }, null, 2)
+    },
+    {
+        id: 'current-joints', method: 'GET', path: '/api/current-joints',
+        desc: 'Aktuelle Gelenkpositionen auslesen', params: [], body: null
+    },
+    {
+        id: 'robot-config-get', method: 'GET', path: '/dashboard/robot-config',
+        desc: 'Robot-Config laden', params: [], body: null
+    },
+    {
+        id: 'robot-config-put', method: 'PUT', path: '/dashboard/robot-config',
+        desc: 'Robot-Config speichern', params: [],
+        body: '{\n  "robot_ip": "10.10.10.10",\n  "gripper_speed": 500,\n  "positions": {},\n  "sequence": []\n}'
+    },
+    {
+        id: 'last-inspection', method: 'GET', path: '/dashboard/last-inspection',
+        desc: 'Letzte Inspektion', params: [], body: null
+    },
+    {
+        id: 'inspection-history', method: 'GET', path: '/dashboard/inspection-history',
+        desc: 'Inspektions-Historie',
+        params: [{ name: 'limit', default: '30', desc: 'Max. Anzahl' }],
+        body: null
+    },
+    {
+        id: 'system-logs', method: 'GET', path: '/dashboard/system-logs',
+        desc: 'System Logs abrufen',
+        params: [{ name: 'limit', default: '100', desc: 'Max. Anzahl' }],
+        body: null
+    },
+    {
+        id: 'db-tables', method: 'GET', path: '/dashboard/db-tables',
+        desc: 'Datenbank-Tabellen Übersicht', params: [], body: null
+    },
+    {
+        id: 'db-table-data', method: 'GET', path: '/dashboard/db-table/inspections',
+        desc: 'Tabellendaten abrufen (paginiert)',
+        params: [{ name: 'limit', default: '50', desc: 'Max. Anzahl' }, { name: 'offset', default: '0', desc: 'Offset' }],
+        body: null
+    }
+];
+
+let selectedEndpoint = null;
+
+function initApiPlayground() {
+    const list = document.getElementById('api-endpoint-list');
+    list.innerHTML = '';
+    API_ENDPOINTS.forEach(ep => {
+        const div = document.createElement('div');
+        div.className = 'api-ep';
+        div.dataset.id = ep.id;
+        div.onclick = () => selectEndpoint(ep.id);
+        div.innerHTML =
+            '<span class="api-ep-method ' + ep.method.toLowerCase() + '">' + ep.method + '</span>' +
+            '<div class="api-ep-info">' +
+            '<div class="api-ep-path">' + ep.path + '</div>' +
+            '<div class="api-ep-desc">' + ep.desc + '</div>' +
+            '</div>';
+        list.appendChild(div);
+    });
+}
+
+function selectEndpoint(id) {
+    const ep = API_ENDPOINTS.find(e => e.id === id);
+    if (!ep) return;
+    selectedEndpoint = ep;
+
+    // Sidebar active state
+    document.querySelectorAll('.api-ep').forEach(el => el.classList.remove('active'));
+    document.querySelector('.api-ep[data-id="' + id + '"]').classList.add('active');
+
+    // Build main area
+    const main = document.getElementById('api-main-inner');
+    let paramsHtml = '';
+    if (ep.params.length > 0) {
+        paramsHtml = '<div><div class="api-section-label">Query Parameter</div><div class="api-params">';
+        ep.params.forEach(p => {
+            paramsHtml += '<div class="api-param-row">' +
+                '<span class="api-param-label">' + p.name + '</span>' +
+                '<input class="api-param-input" id="api-param-' + p.name + '" value="' + p.default + '" placeholder="' + p.desc + '">' +
+                '</div>';
+        });
+        paramsHtml += '</div></div>';
+    }
+
+    let bodyHtml = '';
+    if (ep.body !== null) {
+        bodyHtml = '<div><div class="api-section-label">Request Body (JSON)</div>' +
+            '<textarea class="api-body-editor" id="api-body-editor">' + ep.body + '</textarea></div>';
+    }
+
+    main.innerHTML =
+        '<div class="api-main-header">' +
+        '<span class="api-ep-method ' + ep.method.toLowerCase() + '">' + ep.method + '</span>' +
+        '<input class="api-main-url" id="api-url-input" value="' + ep.path + '">' +
+        '<button class="api-send-btn" id="api-send-btn" onclick="sendApiRequest()">Senden</button>' +
+        '</div>' +
+        '<div class="api-body-section">' +
+        paramsHtml +
+        bodyHtml +
+        '<div>' +
+        '<div class="api-section-label">Response</div>' +
+        '<div class="api-response-wrap">' +
+        '<div class="api-response-header" id="api-resp-header" style="display:none">' +
+        '<span class="api-status-badge" id="api-resp-status"></span>' +
+        '<span class="api-response-time" id="api-resp-time"></span>' +
+        '<span style="flex:1"></span>' +
+        '<button class="btn btn-outline btn-sm" onclick="copyApiResponse()">Kopieren</button>' +
+        '</div>' +
+        '<pre class="api-response-body empty" id="api-resp-body">Noch keine Anfrage gesendet</pre>' +
+        '</div>' +
+        '</div>' +
+        '</div>';
+}
+
+async function sendApiRequest() {
+    if (!selectedEndpoint) return;
+    const btn = document.getElementById('api-send-btn');
+    btn.classList.add('loading');
+    btn.textContent = '...';
+
+    let url = document.getElementById('api-url-input').value;
+
+    // Append query params
+    if (selectedEndpoint.params.length > 0) {
+        const qp = [];
+        selectedEndpoint.params.forEach(p => {
+            const val = document.getElementById('api-param-' + p.name);
+            if (val && val.value) qp.push(encodeURIComponent(p.name) + '=' + encodeURIComponent(val.value));
+        });
+        if (qp.length > 0) url += '?' + qp.join('&');
+    }
+
+    const opts = { method: selectedEndpoint.method, headers: {} };
+    if (selectedEndpoint.body !== null) {
+        const bodyEl = document.getElementById('api-body-editor');
+        if (bodyEl) {
+            opts.headers['Content-Type'] = 'application/json';
+            opts.body = bodyEl.value;
+        }
+    }
+
+    const startTime = performance.now();
+    try {
+        const res = await fetch(url, opts);
+        const elapsed = Math.round(performance.now() - startTime);
+        let body;
+        const ct = res.headers.get('content-type') || '';
+        if (ct.includes('application/json')) {
+            body = JSON.stringify(await res.json(), null, 2);
+        } else {
+            body = await res.text();
+        }
+        showApiResponse(res.status, elapsed, body);
+    } catch(e) {
+        const elapsed = Math.round(performance.now() - startTime);
+        showApiResponse(0, elapsed, 'Fehler: ' + e.message);
+    }
+
+    btn.classList.remove('loading');
+    btn.textContent = 'Senden';
+}
+
+function showApiResponse(status, timeMs, body) {
+    const header = document.getElementById('api-resp-header');
+    const statusEl = document.getElementById('api-resp-status');
+    const timeEl = document.getElementById('api-resp-time');
+    const bodyEl = document.getElementById('api-resp-body');
+
+    header.style.display = 'flex';
+
+    let statusClass = 'serr';
+    if (status >= 200 && status < 300) statusClass = 's2xx';
+    else if (status >= 400 && status < 500) statusClass = 's4xx';
+    else if (status >= 500) statusClass = 's5xx';
+
+    statusEl.className = 'api-status-badge ' + statusClass;
+    statusEl.textContent = status === 0 ? 'ERR' : status;
+    timeEl.textContent = timeMs + ' ms';
+    bodyEl.className = 'api-response-body';
+    bodyEl.textContent = body;
+}
+
+function copyApiResponse() {
+    const bodyEl = document.getElementById('api-resp-body');
+    if (bodyEl) {
+        navigator.clipboard.writeText(bodyEl.textContent);
+        toast('Response kopiert!');
+    }
+}
+
+/* ========== TEACH MODUS ========== */
+let teachModeActive = false;
+let teachCapturedJoints = null;
+
+async function toggleTeachMode() {
+    const newState = !teachModeActive;
+    const toggle = document.getElementById('teach-toggle');
+    const status = document.getElementById('teach-status');
+    const label = document.getElementById('teach-label');
+
+    toggle.classList.toggle('active', newState);
+    status.textContent = newState ? 'Wird aktiviert...' : 'Wird deaktiviert...';
+    status.className = 'teach-status ' + (newState ? 'on' : 'off');
+
+    try {
+        const res = await fetch('/api/learning-mode', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ enabled: newState })
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+            teachModeActive = newState;
+            status.textContent = newState ? 'Aktiv – Roboter frei bewegbar' : 'Inaktiv';
+            label.className = 'teach-toggle-label' + (newState ? ' on' : '');
+            toast(newState ? 'Learning Mode aktiviert' : 'Learning Mode deaktiviert');
+        } else {
+            toggle.classList.toggle('active', teachModeActive);
+            status.textContent = 'Fehler';
+            toast(data.message || 'Fehler beim Umschalten', 'err');
+        }
+    } catch(e) {
+        toggle.classList.toggle('active', teachModeActive);
+        status.textContent = teachModeActive ? 'Aktiv' : 'Inaktiv';
+        toast('Verbindung zum Roboter fehlgeschlagen', 'err');
+    }
+}
+
+async function captureTeachPosition() {
+    const btn = document.getElementById('teach-capture-btn');
+    const display = document.getElementById('teach-joints-display');
+    btn.disabled = true;
+    btn.textContent = 'Lese...';
+    display.textContent = 'Lese Gelenkpositionen...';
+
+    try {
+        const res = await fetch('/api/current-joints');
+        const data = await res.json();
+        if (data.status === 'success' && data.joints) {
+            teachCapturedJoints = data.joints;
+            display.textContent = '[' + data.joints.join(', ') + ']';
+            document.getElementById('teach-save-btn').disabled = false;
+            toast('Position erfasst!');
+        } else {
+            display.textContent = 'Fehler: ' + (data.message || 'Keine Daten');
+            toast(data.message || 'Position konnte nicht gelesen werden', 'err');
+        }
+    } catch(e) {
+        display.textContent = 'Verbindungsfehler';
+        toast('Verbindung zum Roboter fehlgeschlagen', 'err');
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'Position erfassen';
+}
+
+function saveTeachPosition() {
+    if (!teachCapturedJoints || !cfg) return;
+    const nameInput = document.getElementById('teach-step-name');
+    let name = nameInput.value.trim();
+    if (!name) {
+        const existingCount = Object.keys(cfg.positions).length;
+        name = 'step' + (existingCount + 1) + '_new';
+        nameInput.value = name;
+    }
+    if (cfg.positions[name]) {
+        if (!confirm('Position "' + name + '" existiert bereits. Überschreiben?')) return;
+    }
+    cfg.positions[name] = teachCapturedJoints;
+    renderPositions();
+    renderPipeline();
+    toast('Position "' + name + '" gespeichert!');
+
+    // Reset
+    teachCapturedJoints = null;
+    document.getElementById('teach-joints-display').textContent = '\u2014';
+    document.getElementById('teach-save-btn').disabled = true;
+    nameInput.value = '';
+}
+
+/* ========== DATABASE EXPLORER ========== */
+let dbCurrentTable = null;
+let dbOffset = 0;
+const DB_PAGE_SIZE = 50;
+const DB_TABLE_META = {
+    configurations: { icon: '&#9881;', color: '#7c3aed' },
+    inspections: { icon: '&#128269;', color: '#2563eb' },
+    system_logs: { icon: '&#128220;', color: '#d97706' }
+};
+
+async function loadDbTables() {
+    try {
+        const res = await fetch('/dashboard/db-tables');
+        if (!res.ok) throw new Error();
+        const tables = await res.json();
+        renderDbOverview(tables);
+    } catch(e) {
+        document.getElementById('db-overview').innerHTML = '<div class="db-empty-state"><div class="db-empty-icon">&#9888;</div>Datenbank nicht erreichbar</div>';
+    }
+}
+
+function renderDbOverview(tables) {
+    const container = document.getElementById('db-overview');
+    let html = '';
+    tables.forEach(t => {
+        const meta = DB_TABLE_META[t.name] || { icon: '&#128451;', color: '#64748b' };
+        const isActive = dbCurrentTable === t.name ? ' active' : '';
+        html += '<div class="db-table-card' + isActive + '" onclick="selectDbTable(\'' + t.name + '\')">' +
+            '<div class="db-table-icon">' + meta.icon + '</div>' +
+            '<div class="db-table-name">' + t.name + '</div>' +
+            '<div class="db-table-count">' + t.count + '</div>' +
+            '<div class="db-table-label">Eintr&auml;ge</div>' +
+            '</div>';
+    });
+    container.innerHTML = html;
+}
+
+async function selectDbTable(name) {
+    dbCurrentTable = name;
+    dbOffset = 0;
+    loadDbTables();
+    await loadDbTableData();
+}
+
+async function loadDbTableData() {
+    if (!dbCurrentTable) return;
+    const section = document.getElementById('db-data-section');
+    section.style.display = 'block';
+    try {
+        const res = await fetch('/dashboard/db-table/' + dbCurrentTable + '?limit=' + DB_PAGE_SIZE + '&offset=' + dbOffset);
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        renderDbTable(data);
+    } catch(e) {
+        document.getElementById('db-data-tbody').innerHTML = '<tr><td colspan="99" class="db-empty-state">Fehler beim Laden</td></tr>';
+    }
+}
+
+function renderDbTable(data) {
+    document.getElementById('db-data-title').textContent = data.table;
+    document.getElementById('db-data-info').textContent = data.total + ' Eintr\u00e4ge gesamt';
+
+    // Header
+    const thead = document.getElementById('db-data-thead');
+    let headHtml = '<tr>';
+    data.columns.forEach(col => { headHtml += '<th>' + col + '</th>'; });
+    headHtml += '<th></th></tr>';
+    thead.innerHTML = headHtml;
+
+    // Body
+    const tbody = document.getElementById('db-data-tbody');
+    if (data.rows.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="' + (data.columns.length + 1) + '" class="db-empty-state"><div class="db-empty-icon">&#128451;</div>Keine Daten</td></tr>';
+    } else {
+        let rowsHtml = '';
+        data.rows.forEach(row => {
+            rowsHtml += '<tr>';
+            data.columns.forEach(col => {
+                let val = row[col];
+                let cls = '';
+                if (col === 'id') cls = ' class="db-col-id"';
+                else if (val === true) { cls = ' class="db-col-bool-true"'; val = 'true'; }
+                else if (val === false) { cls = ' class="db-col-bool-false"'; val = 'false'; }
+                else if (val === null || val === undefined) { cls = ' class="db-col-null"'; val = 'NULL'; }
+                else if (typeof val === 'string' && val.match(/^\d{4}-\d{2}-\d{2}T/)) {
+                    cls = ' class="db-col-time"';
+                    const d = new Date(val);
+                    val = d.toLocaleDateString('de-DE') + ' ' + d.toLocaleTimeString('de-DE', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+                }
+                rowsHtml += '<td' + cls + ' title="' + String(row[col] !== null ? row[col] : 'NULL').replace(/"/g, '&quot;') + '">' + val + '</td>';
+            });
+            rowsHtml += '<td><button class="db-del-btn" onclick="deleteDbRow(\'' + data.table + '\',' + row.id + ')" title="L\u00f6schen">&#128465;</button></td>';
+            rowsHtml += '</tr>';
+        });
+        tbody.innerHTML = rowsHtml;
+    }
+
+    // Pagination
+    const from = data.total === 0 ? 0 : dbOffset + 1;
+    const to = Math.min(dbOffset + DB_PAGE_SIZE, data.total);
+    document.getElementById('db-page-info').textContent = from + '\u2013' + to + ' von ' + data.total;
+    document.getElementById('db-prev-btn').disabled = dbOffset === 0;
+    document.getElementById('db-next-btn').disabled = (dbOffset + DB_PAGE_SIZE) >= data.total;
+}
+
+function dbPagePrev() { dbOffset = Math.max(0, dbOffset - DB_PAGE_SIZE); loadDbTableData(); }
+function dbPageNext() { dbOffset += DB_PAGE_SIZE; loadDbTableData(); }
+
+async function clearDbTable() {
+    if (!dbCurrentTable) return;
+    if (!confirm('Alle Eintr\u00e4ge in "' + dbCurrentTable + '" l\u00f6schen?')) return;
+    try {
+        const res = await fetch('/dashboard/db-table/' + dbCurrentTable, { method: 'DELETE' });
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        toast(data.deleted + ' Eintr\u00e4ge gel\u00f6scht aus ' + dbCurrentTable);
+        loadDbTables();
+        loadDbTableData();
+    } catch(e) { toast('Fehler beim L\u00f6schen', 'err'); }
+}
+
+async function deleteDbRow(table, id) {
+    if (!confirm('Eintrag #' + id + ' l\u00f6schen?')) return;
+    try {
+        const res = await fetch('/dashboard/db-table/' + table + '/' + id, { method: 'DELETE' });
+        if (!res.ok) throw new Error();
+        toast('Eintrag #' + id + ' gel\u00f6scht');
+        loadDbTables();
+        loadDbTableData();
+    } catch(e) { toast('Fehler beim L\u00f6schen', 'err'); }
+}
+
+/* ========== INIT ========== */
 loadFromServer();
 loadInspection();
+loadHistory();
+initApiPlayground();
 </script>
 </body>
 </html>

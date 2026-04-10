@@ -1,6 +1,6 @@
 import json
 from sqlalchemy.orm import Session
-from app.domain import models
+from app.infrastructure.database import models
 from app.api import schemas
 
 class InspectionRepository:

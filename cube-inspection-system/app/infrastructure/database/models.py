@@ -1,8 +1,14 @@
+# ====================================================================
+# IMPORTS
+# ====================================================================
 from sqlalchemy import Column, Integer, String, Float, DateTime, Boolean, ForeignKey
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.infrastructure.database.db import Base
 
+# ====================================================================
+# DATABASE MODELS
+# ====================================================================
 class Configuration(Base):
     __tablename__ = "configurations"
     id = Column(Integer, primary_key=True, index=True)
