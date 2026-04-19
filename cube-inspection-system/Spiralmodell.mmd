@@ -1,0 +1,159 @@
+graph LR
+    subgraph I1["Iteration 1: Planung & Infrastruktur"]
+        direction TB
+        I1P["Planung"] --> I1R["Risikoanalyse"]
+        I1R --> I1E["Entwicklung"]
+        I1E --> I1T["Test & Bewertung"]
+
+        I1P -.- I1P1(["Ist-Analyse & Systemkonzept"])
+        I1P -.- I1P2(["Projektstruktur festlegen"])
+        I1P -.- I1P3(["Technologie-Stack wählen"])
+        I1R -.- I1R1(["Hardware nicht verfügbar"])
+        I1R -.- I1R2(["API-Kompatibilität Roboter"])
+        I1E -.- I1E1(["Ordnerstruktur anlegen"])
+        I1E -.- I1E2(["Datenbankmodelle definieren"])
+        I1E -.- I1E3(["Datenbankverbindung einrichten"])
+        I1E -.- I1E4(["Abhängigkeiten & Konfiguration"])
+        I1T -.- I1T1(["Datenbankverbindung verifizieren"])
+        I1T -.- I1T2(["Tabellenstruktur prüfen"])
+    end
+
+    subgraph I2["Iteration 2: Roboter-Steuerung"]
+        direction TB
+        I2P["Planung"] --> I2R["Risikoanalyse"]
+        I2R --> I2E["Entwicklung"]
+        I2E --> I2T["Test & Bewertung"]
+
+        I2P -.- I2P1(["Greif-Ablauf definieren"])
+        I2P -.- I2P2(["Roboter-Positionen festlegen"])
+        I2P -.- I2P3(["Sortier-Pfade planen"])
+        I2R -.- I2R1(["Greifer greift nicht zuverlässig"])
+        I2R -.- I2R2(["Kollision bei Bewegung"])
+        I2R -.- I2R3(["Kalibrierung verloren"])
+        I2E -.- I2E1(["Roboter-Verbindung & Vorbereitung"])
+        I2E -.- I2E2(["Greif- und Ablege-Funktionen"])
+        I2E -.- I2E3(["Positionen konfigurierbar ablegen"])
+        I2E -.- I2E4(["Inspektions-Bewegungssequenz"])
+        I2E -.- I2E5(["Sortier-Bewegungssequenz"])
+        I2T -.- I2T1(["Verbindung & Einzelbewegungen testen"])
+        I2T -.- I2T2(["Greif-Sequenz End-to-End testen"])
+    end
+
+    subgraph I3["Iteration 3: Bildverarbeitung"]
+        direction TB
+        I3P["Planung"] --> I3R["Risikoanalyse"]
+        I3R --> I3E["Entwicklung"]
+        I3E --> I3T["Test & Bewertung"]
+
+        I3P -.- I3P1(["Erkennungs-Strategie festlegen"])
+        I3P -.- I3P2(["Farbbereich bestimmen"])
+        I3P -.- I3P3(["Schwellwerte definieren"])
+        I3R -.- I3R1(["Beleuchtung ungleichmäßig"])
+        I3R -.- I3R2(["Fehlerkennungen durch Oberflächenstruktur"])
+        I3R -.- I3R3(["Kamera liefert kein Bild"])
+        I3E -.- I3E1(["Kamera-Anbindung & Bildaufnahme"])
+        I3E -.- I3E2(["Farbbasierte Objekterkennung"])
+        I3E -.- I3E3(["Augenzahl-Erkennung per Konturanalyse"])
+        I3E -.- I3E4(["Ausreißer-Filterung"])
+        I3T -.- I3T1(["Erkennung mit Testbildern validieren"])
+        I3T -.- I3T2(["Kamera-Erreichbarkeit prüfen"])
+    end
+
+    subgraph I4["Iteration 4: API – Endpunkte & Datenmodell"]
+        direction TB
+        I4P["Planung"] --> I4R["Risikoanalyse"]
+        I4R --> I4E["Entwicklung"]
+        I4E --> I4T["Test & Bewertung"]
+
+        I4P -.- I4P1(["REST-Endpunkte definieren"])
+        I4P -.- I4P2(["Request-/Response-Schemas planen"])
+        I4P -.- I4P3(["Repository-Pattern entwerfen"])
+        I4R -.- I4R1(["Ungültige Eingabedaten"])
+        I4R -.- I4R2(["Schema-Validierung fehlschlägt"])
+        I4E -.- I4E1(["Web-Framework & Middleware"])
+        I4E -.- I4E2(["Datenvalidierung mit Schemas"])
+        I4E -.- I4E3(["Datenzugriffsschicht implementieren"])
+        I4E -.- I4E4(["Dependency Injection für DB-Sessions"])
+        I4T -.- I4T1(["API-Endpunkte mit Testdaten prüfen"])
+        I4T -.- I4T2(["Eingabe-Validierung testen"])
+    end
+
+    subgraph I5["Iteration 5: API – Inspektions-Ablauf"]
+        direction TB
+        I5P["Planung"] --> I5R["Risikoanalyse"]
+        I5R --> I5E["Entwicklung"]
+        I5E --> I5T["Test & Bewertung"]
+
+        I5P -.- I5P1(["Ablauf: Roboter → Kamera → Erkennung → DB"])
+        I5P -.- I5P2(["Asynchrone Verarbeitung planen"])
+        I5P -.- I5P3(["Bildablage festlegen"])
+        I5R -.- I5R1(["Roboter bricht Sequenz ab"])
+        I5R -.- I5R2(["Kein Objekt im Bild erkannt"])
+        I5R -.- I5R3(["DB-Konflikt bei parallelen Tasks"])
+        I5E -.- I5E1(["Inspektions-Service als Orchestrator"])
+        I5E -.- I5E2(["Bildaufnahme an definierten Positionen"])
+        I5E -.- I5E3(["Bildanalyse pro aufgenommener Seite"])
+        I5E -.- I5E4(["SOLL-/IST-Vergleich & Ergebnis speichern"])
+        I5E -.- I5E5(["Hintergrund-Task bei Konfigurationseingang"])
+        I5T -.- I5T1(["Inspektion auslösen & Ergebnis prüfen"])
+        I5T -.- I5T2(["Aufgenommene Bilder kontrollieren"])
+    end
+
+    subgraph I6["Iteration 6: API – Sortierung, Logging & Status"]
+        direction TB
+        I6P["Planung"] --> I6R["Risikoanalyse"]
+        I6R --> I6E["Entwicklung"]
+        I6E --> I6T["Test & Bewertung"]
+
+        I6P -.- I6P1(["Sortier-Logik nach Prüfergebnis"])
+        I6P -.- I6P2(["Logging-Strategie festlegen"])
+        I6P -.- I6P3(["System-Status-Endpunkte planen"])
+        I6R -.- I6R1(["Falsche Sortier-Zuordnung"])
+        I6R -.- I6R2(["Logger blockiert bei DB-Fehler"])
+        I6E -.- I6E1(["Sortier-Service: OK/NOK-Zuordnung"])
+        I6E -.- I6E2(["Zentraler Logger: DB + Konsole"])
+        I6E -.- I6E3(["Healthcheck: Roboter, Kalibrierung, Kamera"])
+        I6E -.- I6E4(["Kalibrierung per API auslösen"])
+        I6E -.- I6E5(["Freedrive-Modus umschalten"])
+        I6E -.- I6E6(["Aktuelle Gelenkpositionen abfragen"])
+        I6T -.- I6T1(["Status-Endpunkte bei verschiedenen Zuständen"])
+        I6T -.- I6T2(["Log-Einträge in DB verifizieren"])
+    end
+
+    subgraph I7["Iteration 7: Integration & End-to-End"]
+        direction TB
+        I7P["Planung"] --> I7R["Risikoanalyse"]
+        I7R --> I7E["Entwicklung"]
+        I7E --> I7T["Test & Bewertung"]
+
+        I7P -.- I7P1(["Alle Module zusammenführen"])
+        I7P -.- I7P2(["Deployment-Strategie festlegen"])
+        I7R -.- I7R1(["Timing-Probleme zwischen Modulen"])
+        I7R -.- I7R2(["Fehler-Kaskade bei Teilausfall"])
+        I7E -.- I7E1(["Anwendungs-Einstiegspunkt konfigurieren"])
+        I7E -.- I7E2(["Auto-Start als Systemdienst"])
+        I7E -.- I7E3(["Fehlerbehandlung & Edge Cases"])
+        I7T -.- I7T1(["End-to-End mit mehreren Prüflingen"])
+        I7T -.- I7T2(["Fehlerfälle: kein Objekt, falsche Position"])
+        I7T -.- I7T3(["Performance-Optimierung"])
+    end
+
+    subgraph I8["Iteration 8: Dokumentation & Abschluss"]
+        direction TB
+        I8P["Planung"] --> I8R["Risikoanalyse"]
+        I8R --> I8E["Entwicklung"]
+        I8E --> I8T["Test & Bewertung"]
+
+        I8P -.- I8P1(["Dokumentations-Umfang festlegen"])
+        I8P -.- I8P2(["Präsentations-Ablauf planen"])
+        I8R -.- I8R1(["Zeitverzug"])
+        I8R -.- I8R2(["Unvollständige Dokumentation"])
+        I8E -.- I8E1(["Projekt-Dokumentation erstellen"])
+        I8E -.- I8E2(["Deployment-Anleitung & Troubleshooting"])
+        I8E -.- I8E3(["Diagramme & Übersichten"])
+        I8E -.- I8E4(["Präsentation & Demo-Video"])
+        I8T -.- I8T1(["Finale Regressionstests"])
+        I8T -.- I8T2(["Abnahme & Präsentation"])
+    end
+
+    I1 --> I2 --> I3 --> I4 --> I5 --> I6 --> I7 --> I8
