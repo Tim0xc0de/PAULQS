@@ -65,3 +65,29 @@ def get_sort_nok_exit() -> str:
     """Gibt die Exit-Position nach NOK-Sortierung zurück."""
     config = load_config()
     return config.get("sort_nok_exit")
+
+
+# ====================================================================
+# SAFETY-KONFIGURATION
+# ====================================================================
+
+def get_safety_config() -> dict:
+    """Gibt die komplette Safety-Konfiguration zurück (mit Defaults)."""
+    config = load_config()
+    defaults = {
+        "enabled": True,
+        "arm_max_velocity": 80,
+        "grip_loss_threshold": 0.005,
+        "gripper_max_torque_percentage": 100,
+        "gripper_hold_torque_percentage": 100,
+        "grip_check_wait_sec": 0.2,
+        "gripper_close_wait_sec": 0.5,
+        "gripper_open_wait_sec": 0.5,
+        "led_error_color": [255, 0, 0],
+        "led_ok_color": [0, 255, 0],
+        "capture_wait_sec": 3,
+    }
+    safety = config.get("safety", {})
+    # Defaults mit gespeicherten Werten ueberschreiben
+    merged = {**defaults, **safety}
+    return merged

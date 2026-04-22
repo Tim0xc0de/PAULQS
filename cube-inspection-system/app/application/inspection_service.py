@@ -6,10 +6,10 @@ import json
 import cv2
 from app.infrastructure.database.db import SessionLocal
 from app.infrastructure.database.repository import InspectionRepository
-from app.infrastructure.robot.robot_controller import RobotController
+from app.infrastructure.robot.robot_controller import RobotController, RobotSafetyError
 from app.infrastructure.robot.movements import get_capture_at
 from app.infrastructure.vision.camera import capture
-from app.infrastructure.vision.detection import detect_cube
+from app.infrastructure.vision.detection import detect_cube, draw_detection
 from app.infrastructure.database.models import Configuration
 from app.api.schemas import InspectionCreate
 from app.application.sorting_service import sort_cube
@@ -51,16 +51,35 @@ def run_inspection(config_id: int):
         captures = _run_robot_sequence(controller, capture_positions)
         log("INSPECTION", "INFO", f"Sequenz abgeschlossen, {len(captures)} Bilder aufgenommen")
 
-        # Schritt 4: Jedes Bild analysieren
-        detections = _analyze_images(captures)
+        # Schritt 4: Farbe aus Konfiguration laden
+        db = SessionLocal()
+        try:
+            config = db.query(Configuration).filter(Configuration.id == config_id).first()
+            cube_color = config.target_color_left if config and config.target_color_left else "orange"
+        finally:
+            db.close()
+        log("INSPECTION", "INFO", f"Zielfarbe: {cube_color}")
 
-        # Schritt 5: Ergebnis in Datenbank speichern
+        # Schritt 5: Jedes Bild analysieren
+        detections = _analyze_images(captures, cube_color)
+
+        # Schritt 6: Ergebnis in Datenbank speichern
         is_ok = _save_result(config_id, detections)
 
-        # Schritt 6: Würfel in die richtige Kiste sortieren
+        # Schritt 7: Würfel in die richtige Kiste sortieren
         sort_cube(controller, is_ok)
 
         log("INSPECTION", "INFO", f"Inspektion abgeschlossen (Config-ID: {config_id}, OK: {is_ok})")
+
+    except RobotSafetyError as e:
+        # Sicherheitsproblem (Wuerfelverlust, Kollision)
+        # Notfall-Stopp wurde bereits im Controller ausgeloest.
+        # LED bleibt rot, Motoren bleiben aktiv, Verbindung bleibt offen.
+        log("INSPECTION", "ERROR", f"Sicherheitsproblem: {e.reason}")
+        _save_result(config_id, [])
+        # KEIN disconnect() - LED muss rot bleiben, Motoren muessen halten!
+        # force_disconnect() muss spaeter manuell aufgerufen werden.
+        return
 
     except Exception as e:
         log("INSPECTION", "ERROR", f"Unerwarteter Fehler: {e}")
@@ -84,9 +103,13 @@ def _run_robot_sequence(controller, capture_positions):
     )
     return captures
 
-def _analyze_images(captures):
+def _analyze_images(captures, color: str = "orange"):
     """
     Analysiert alle aufgenommenen Bilder und speichert sie.
+    
+    Args:
+        captures: Liste von (step_name, img) Tupeln
+        color: Würfelfarbe für die Erkennung (aus COLOR_RANGES)
     
     Returns:
         Liste von Detektionen (kann None enthalten)
@@ -100,7 +123,7 @@ def _analyze_images(captures):
             continue
         
         # Würfel im Bild erkennen
-        detection = detect_cube(img)
+        detection = detect_cube(img, color)
         detections.append(detection)
         
         # Rohbild speichern
@@ -111,7 +134,7 @@ def _analyze_images(captures):
             log("VISION", "INFO", f"Seite {i} ({step_name}): {detection['dots']} Augen erkannt")
             # Ergebnisbild mit Box speichern
             result_img = img.copy()
-            _draw_box(result_img, detection)
+            draw_detection(result_img, detection)
             result_path = os.path.join(CAPTURE_DIR, f"side_{i}_result.jpg")
             cv2.imwrite(result_path, result_img)
         else:
@@ -120,11 +143,8 @@ def _analyze_images(captures):
     return detections
 
 def _draw_box(img, detection):
-    """Zeichnet Box und Augenzahl ins Bild."""
-    x, y, w, h = detection["x"], detection["y"], detection["w"], detection["h"]
-    cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 2)
-    cv2.putText(img, f"Augen: {detection['dots']}", (x, y - 10),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+    """Zeichnet Box und Augenzahl ins Bild. (Wrapper fuer draw_detection)"""
+    draw_detection(img, detection)
 
 def _save_result(config_id: int, detections: list) -> bool:
     """Speichert Ergebnis in DB und gibt is_ok zurück."""

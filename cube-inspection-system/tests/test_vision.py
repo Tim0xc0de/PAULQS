@@ -1,122 +1,196 @@
-from pyniryo import NiryoRobot
+"""
+test_vision.py – Visueller Test der Würfelerkennung.
+
+Nutzt die echte Erkennungslogik aus der App (detect_cube, _get_dot_mask).
+Zeigt das Livebild der Roboter-Kamera mit klickbarem "Analysieren"-Button.
+
+Bedienung:
+  Klick auf gruenen Button = Analysieren
+  Klick auf roten Button   = Beenden
+"""
+import os
+import sys
 import cv2
 import numpy as np
+from datetime import datetime
+from pyniryo import NiryoRobot
 
-# --- Parameter (gleich wie detection.py) ---
-MIN_CUBE_AREA = 2000
-MAX_CUBE_RATIO = 0.4
-MIN_DOT_AREA = 30
-MAX_DOT_AREA = 800
-MIN_CIRCULARITY = 0.45
+# App-Module verfügbar machen
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from app.infrastructure.vision.camera import capture
+from app.infrastructure.vision.detection import detect_cube, draw_detection
 
-# HSV-Grenzen für Orange (gleich wie image_processing.py)
-ORANGE_LOWER = np.array([5, 150, 120])
-ORANGE_UPPER = np.array([25, 255, 255])
+# ====================================================================
+# KONFIGURATION
+# ====================================================================
+ROBOT_IP = "10.10.10.10"
+COLOR = "orange"
+SAVE_DIR = os.path.join(os.path.dirname(__file__), "vision_captures")
+os.makedirs(SAVE_DIR, exist_ok=True)
 
-# 1. Verbindung herstellen
-robot_ip = "10.10.10.10"
-robot = NiryoRobot(robot_ip)
+# Button-Bereiche (werden unten ins Bild gezeichnet)
+BTN_H = 40
+BTN_ANALYZE = {"label": "Analysieren", "color": (0, 180, 0)}
+BTN_QUIT    = {"label": "Beenden",     "color": (0, 0, 200)}
 
-print("Starte Objekterkennung (RETR_CCOMP Hierarchie-Ansatz)...")
-print("Drücke 'q' im Bildfenster, um das Programm zu beenden.")
+# Globaler State fuer Maus-Callback
+clicked_action = None
+
+
+def on_mouse(event, x, y, flags, param):
+    """Maus-Callback: prueft ob ein Button geklickt wurde."""
+    global clicked_action
+    if event != cv2.EVENT_LBUTTONDOWN:
+        return
+    img_h = param["img_h"]
+    img_w = param["img_w"]
+    btn_y = img_h - BTN_H
+    if y < btn_y:
+        return
+    if x < img_w // 2:
+        clicked_action = "analyze"
+    else:
+        clicked_action = "quit"
+
+
+def draw_buttons(frame):
+    """Zeichnet die zwei Buttons unten ins Bild."""
+    h, w = frame.shape[:2]
+    mid = w // 2
+    btn_y = h - BTN_H
+
+    # Analysieren (links)
+    cv2.rectangle(frame, (0, btn_y), (mid - 1, h), BTN_ANALYZE["color"], -1)
+    cv2.putText(frame, BTN_ANALYZE["label"], (mid // 2 - 60, btn_y + 28),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+
+    # Beenden (rechts)
+    cv2.rectangle(frame, (mid, btn_y), (w, h), BTN_QUIT["color"], -1)
+    cv2.putText(frame, BTN_QUIT["label"], (mid + mid // 2 - 45, btn_y + 28),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+
+
+def save_img(name, img, folder):
+    """Speichert ein Bild unter folder/name."""
+    path = os.path.join(folder, name)
+    cv2.imwrite(path, img)
+    print(f"  -> Gespeichert: {path}")
+
+
+def analyze(img, run_folder):
+    """Analyse nur mit App-Funktionen: detect_cube() und draw_detection()."""
+
+    # Schritt 1: Rohbild speichern
+    print("\n[1/4] Rohbild speichern")
+    save_img("01_raw.jpg", img, run_folder)
+
+    # Schritt 2: detect_cube(debug=True) – Erkennung + Masken
+    print("[2/4] detect_cube(debug=True) aufrufen")
+    detection = detect_cube(img, COLOR, debug=True)
+
+    if detection is None:
+        print("  !! Kein Wuerfel erkannt.")
+        return
+
+    dots = detection["dots"]
+    x, y, w, h = detection["x"], detection["y"], detection["w"], detection["h"]
+    print(f"  Wuerfel bei ({x},{y} {w}x{h}), Augen: {dots}")
+
+    # Schritt 3: Ergebnisbild mit draw_detection() zeichnen
+    print("[3/4] draw_detection() aufrufen")
+    result = img.copy()
+    draw_detection(result, detection)
+    save_img("02_result.jpg", result, run_folder)
+
+    # Schritt 4: Debug-Masken speichern (kommen direkt aus detect_cube)
+    print("[4/4] Debug-Masken speichern")
+    mask = detection.get("mask")
+    dark_mask = detection.get("dark_mask")
+
+    if mask is not None:
+        save_img("03_mask.jpg", mask, run_folder)
+        cv2.imshow("Farbmaske", cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR))
+
+    if dark_mask is not None:
+        save_img("04_dark_spots.jpg", dark_mask, run_folder)
+        cv2.imshow("Dark Spots", cv2.cvtColor(dark_mask, cv2.COLOR_GRAY2BGR))
+
+    # ROI speichern (einfacher Bildausschnitt, keine Logik)
+    roi = img[y:y+h, x:x+w]
+    save_img("05_roi.jpg", roi, run_folder)
+
+    # Ergebnis anzeigen
+    cv2.imshow("Ergebnis", result)
+    cv2.imshow("ROI", roi)
+
+    print(f"\nErgebnis: {dots} Augen erkannt. Bilder in {run_folder}")
+
+
+# ====================================================================
+# HAUPTPROGRAMM
+# ====================================================================
+WINDOW = "Livebild (Klick: Analysieren / Beenden)"
+
+print("Verbinde mit Roboter ...")
+robot = NiryoRobot(ROBOT_IP)
+run_count = 0
+
+# Fenster vorbereiten + Maus-Callback registrieren
+cv2.namedWindow(WINDOW, cv2.WINDOW_AUTOSIZE)
+mouse_param = {"img_h": 480, "img_w": 640}
+cv2.setMouseCallback(WINDOW, on_mouse, mouse_param)
+
+print("Livebild aktiv. Gruener Button = Analysieren, Roter Button = Beenden")
 
 try:
     while True:
-        # Bild vom Roboter holen
-        img_compressed = robot.get_img_compressed()
-        img_array = np.frombuffer(img_compressed, dtype=np.uint8)
-        img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
+        # Livebild holen
+        img = capture(robot)
+        if img is None:
+            print("Fehler: Kein Bild erhalten.")
+            break
 
         # Kamera ist auf dem Kopf → 180° drehen
-        if img is not None:
-            img = cv2.rotate(img, cv2.ROTATE_180)
+        img = cv2.rotate(img, cv2.ROTATE_180)
 
-        if img is not None:
-            h_img, w_img = img.shape[:2]
-            max_area = h_img * w_img * MAX_CUBE_RATIO
+        # Maus-Param aktualisieren (fuer korrekte Button-Erkennung)
+        h_img, w_img = img.shape[:2]
+        mouse_param["img_h"] = h_img + BTN_H
+        mouse_param["img_w"] = w_img
 
-            # A) Orange-Maske mit 5x5 MORPH_CLOSE (schließt Ritzen, erhält Augen)
-            hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-            mask = cv2.inRange(hsv, ORANGE_LOWER, ORANGE_UPPER)
-            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
-            mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
-            mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+        # Frame mit Buttons zusammenbauen
+        btn_bar = np.zeros((BTN_H, w_img, 3), dtype=np.uint8)
+        frame = np.vstack([img, btn_bar])
+        draw_buttons(frame)
+        cv2.imshow(WINDOW, frame)
 
-            # B) Konturen MIT Hierarchie (RETR_CCOMP: außen + Löcher)
-            contours, hierarchy = cv2.findContours(
-                mask, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE
-            )
+        cv2.waitKey(30)
 
-            dot_count = 0
-            cube_found = False
-
-            if contours and hierarchy is not None:
-                hierarchy = hierarchy[0]
-
-                # Würfel = größte äußere Kontur (kein Parent)
-                cube_idx = -1
-                cube_area = 0
-                for i in range(len(contours)):
-                    if hierarchy[i][3] != -1:
-                        continue
-                    area = cv2.contourArea(contours[i])
-                    if area < MIN_CUBE_AREA or area > max_area:
-                        continue
-                    bx, by, bw, bh = cv2.boundingRect(contours[i])
-                    aspect = bw / bh if bh > 0 else 0
-                    if 0.3 < aspect < 3.0 and area > cube_area:
-                        cube_idx = i
-                        cube_area = area
-
-                if cube_idx != -1:
-                    cube_found = True
-                    x, y, w, h = cv2.boundingRect(contours[cube_idx])
-
-                    # Grünes Rechteck um den Würfel
-                    cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 2)
-
-                    # Augen = innere Konturen (Kinder) des Würfels
-                    # Schritt 1: Alle Kandidaten sammeln
-                    candidates = []
-                    child_idx = hierarchy[cube_idx][2]
-                    while child_idx != -1:
-                        area = cv2.contourArea(contours[child_idx])
-                        perimeter = cv2.arcLength(contours[child_idx], True)
-                        circ = (4 * np.pi * area / (perimeter ** 2)) if perimeter > 0 else 0
-                        if MIN_DOT_AREA < area < MAX_DOT_AREA and circ > MIN_CIRCULARITY:
-                            candidates.append((area, contours[child_idx]))
-                            print(f"  Kandidat: area={area:.0f}, circ={circ:.2f}")
-                        child_idx = hierarchy[child_idx][0]
-
-                    # Schritt 2: Ausreißer entfernen
-                    if len(candidates) > 2:
-                        median_area = float(np.median([a for a, _ in candidates]))
-                        filtered = [(a, c) for a, c in candidates if a > median_area * 0.4]
-                        print(f"  Median={median_area:.0f}, {len(candidates)} Kandidaten -> {len(filtered)} nach Filter")
-                    else:
-                        filtered = candidates
-
-                    for area, cont in filtered:
-                        dot_count += 1
-                        dx, dy_, dw, dh = cv2.boundingRect(cont)
-                        cv2.rectangle(img, (dx, dy_), (dx+dw, dy_+dh), (0, 0, 255), 1)
-
-                    # Ergebnis über den Würfel schreiben
-                    text = f"Augen: {dot_count}"
-                    cv2.putText(img, text, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
-                    cv2.putText(mask, text, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (180,), 2)
-                    print(f"Augen erkannt: {dot_count}")
-
-            # Bilder anzeigen
-            cv2.imshow("Wuerfel Erkennung (RETR_CCOMP)", img)
-            cv2.imshow("Orange-Maske", mask)
-
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                print("Beende Stream...")
-                break
-        else:
-            print("Fehler: Bild konnte nicht dekodiert werden.")
+        # Button-Klick auswerten
+        if clicked_action == "quit":
+            print("Beende ...")
             break
+
+        if clicked_action == "analyze":
+            clicked_action = None
+
+            run_count += 1
+            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+            run_folder = os.path.join(SAVE_DIR, f"run_{run_count}_{ts}")
+            os.makedirs(run_folder, exist_ok=True)
+
+            print(f"\n{'='*50}")
+            print(f"ANALYSE #{run_count}")
+            print(f"{'='*50}")
+            analyze(img, run_folder)
+
+            # Warten bis Klick irgendwo → zurueck zum Livebild
+            print("\nKlick oder Taste druecken fuer naechstes Livebild ...")
+            cv2.waitKey(0)
+            cv2.destroyWindow("Farbmaske")
+            cv2.destroyWindow("Dark Spots")
+            cv2.destroyWindow("Ergebnis")
+            cv2.destroyWindow("ROI")
 
 except Exception as e:
     print(f"Fehler: {e}")
@@ -124,3 +198,4 @@ except Exception as e:
 finally:
     cv2.destroyAllWindows()
     robot.close_connection()
+    print("Verbindung getrennt.")

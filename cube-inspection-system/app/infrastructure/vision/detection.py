@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-from app.infrastructure.vision.image_processing import ORANGE_LOWER, ORANGE_UPPER
+from app.infrastructure.vision.image_processing import COLOR_RANGES, get_dark_spots
 
 MIN_CUBE_AREA = 2000
 MAX_CUBE_RATIO = 0.4
@@ -9,35 +9,52 @@ MAX_DOT_AREA = 800
 MIN_CIRCULARITY = 0.45
 
 
-def _get_dot_mask(img):
-    """Orange-Maske mit kleinem Kernel (3x3).
+def _get_dot_mask(img, color: str = "orange"):
+    """Farbmaske mit kleinem Kernel (3x3).
     
     Schließt winzige Oberflächen-Lücken (Textur),
     aber lässt die Augen-Löcher offen (die sind viel größer).
+    Unterstützt alle Farben aus COLOR_RANGES.
     """
     hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-    mask = cv2.inRange(hsv, ORANGE_LOWER, ORANGE_UPPER)
+    mask = np.zeros(hsv.shape[:2], dtype=np.uint8)
+    
+    for lower, upper in COLOR_RANGES[color]:
+        mask |= cv2.inRange(hsv, lower, upper)
+    
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
     mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
     mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
     return mask
 
 
-def detect_cube(img) -> dict | None:
-    """Erkennt einen orangen Würfel und zählt seine Augen.
+def draw_detection(img, detection):
+    """Zeichnet Box und Augenzahl ins Bild (in-place)."""
+    x, y, w, h = detection["x"], detection["y"], detection["w"], detection["h"]
+    cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 2)
+    cv2.putText(img, f"Augen: {detection['dots']}", (x, y - 10),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+
+
+def detect_cube(img, color: str = "orange", debug: bool = False) -> dict | None:
+    """Erkennt einen farbigen Würfel und zählt seine Augen.
     
     Ansatz: Contour-Hierarchie (RETR_CCOMP).
-    - Äußere Kontur = Würfelfläche (orange)
+    - Äußere Kontur = Würfelfläche (konfigurierbare Farbe)
     - Innere Konturen = Löcher in der Fläche = Augen
     
     Kein Grauwert-Threshold, kein Convex Hull, kein Erosion.
     OpenCV findet die Löcher direkt.
+    
+    Bei debug=True enthält das Ergebnis zusätzlich:
+      - 'mask': Farbmaske (Binärbild)
+      - 'dark_mask': Dark-Spots-Maske des ROI (nur wenn Fallback aktiv)
     """
     h_img, w_img = img.shape[:2]
     max_area = h_img * w_img * MAX_CUBE_RATIO
 
-    # Orange-Maske mit kleinem Kernel (erhält Augen-Löcher)
-    mask = _get_dot_mask(img)
+    # Farbmaske mit kleinem Kernel (erhält Augen-Löcher)
+    mask = _get_dot_mask(img, color)
 
     # Konturen MIT Hierarchie finden (2-Level: außen + Löcher)
     contours, hierarchy = cv2.findContours(
@@ -89,4 +106,33 @@ def detect_cube(img) -> dict | None:
     else:
         dots = len(candidates)
 
-    return {"x": x, "y": y, "w": w, "h": h, "dots": dots}
+    # Fallback: Wenn Hierarchie 0 Augen findet (z.B. gleichfarbige Prägung),
+    # dunkle Stellen im Würfel-ROI per Helligkeits-Threshold suchen.
+    dots_from_fallback = False
+    dark_mask = None
+    if dots == 0:
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        # Rand abschneiden (10%) → Kantenartefakte am Würfelrand vermeiden
+        m = int(min(w, h) * 0.10)
+        roi_gray = gray[y+m:y+h-m, x+m:x+w-m]
+        dark_mask = get_dark_spots(roi_gray)
+        dot_cnts, _ = cv2.findContours(dark_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        fb_areas = []
+        for c in dot_cnts:
+            a = cv2.contourArea(c)
+            if MIN_DOT_AREA < a < MAX_DOT_AREA:
+                p = cv2.arcLength(c, True)
+                if p > 0 and (4 * np.pi * a / (p ** 2)) > 0.3:
+                    fb_areas.append(a)
+        # Ausreißer entfernen: Flächen die stark vom Median abweichen
+        if len(fb_areas) > 2:
+            med = float(np.median(fb_areas))
+            fb_areas = [a for a in fb_areas if med * 0.3 < a < med * 3.0]
+        dots = len(fb_areas)
+        dots_from_fallback = True
+
+    result = {"x": x, "y": y, "w": w, "h": h, "dots": dots}
+    if debug:
+        result["mask"] = mask
+        result["dark_mask"] = dark_mask if dots_from_fallback else None
+    return result

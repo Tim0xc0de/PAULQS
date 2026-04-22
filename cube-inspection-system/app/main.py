@@ -9,6 +9,7 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from app.infrastructure.database.db import engine, Base
 from app.api.routes import router as api_router
 from app.dashboard.routes import router as dashboard_router
+from app.utils.logger import start_log_rotation
 
 # 1. Datenbank-Tabellen beim Start sicherstellen
 Base.metadata.create_all(bind=engine)
@@ -20,6 +21,11 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 # 3. Routen einbinden
 app.include_router(api_router, prefix="/api")
 app.include_router(dashboard_router, prefix="/dashboard")
+
+# 4. Log-Rotation starten (loescht Logs aelter als 30 Tage, taeglich)
+@app.on_event("startup")
+def on_startup():
+    start_log_rotation()
 
 @app.get("/")
 def read_root():

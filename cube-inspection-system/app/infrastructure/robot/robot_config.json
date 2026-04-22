@@ -4,75 +4,83 @@
   "positions": {
     "step1_over_cube": [
       -0.4086,
-      0.0904,
-      -0.6325,
-      0.0845,
-      -0.9512,
+      -0.0217,
+      -0.6749,
+      0.0906,
+      -0.8469,
       -0.4524
     ],
     "step2_at_cube": [
-      -0.3812,
-      -0.4505,
-      -0.8325,
-      0.1964,
-      -0.2348,
-      -0.5966
+      -0.4056,
+      -0.4929,
+      -0.7749,
+      0.1934,
+      -0.3422,
+      -0.5445
     ],
-    "step4_up": [
-      -0.4086,
-      0.0904,
-      -0.6325,
-      0.0845,
-      -0.9512,
+    "step3_up": [
+      -0.398,
+      0.1782,
+      -0.4765,
+      0.1535,
+      -1.1935,
       -0.4524
     ],
-    "step5_top_right": [
-      0.2489,
-      0.3631,
-      -0.4477,
-      0.1458,
-      -1.2702,
-      -0.1778
+    "step4_top_right": [
+      0.153,
+      0.304,
+      -0.575,
+      0.0829,
+      -1.1797,
+      0.0507
     ],
-    "step6_cam_entry": [
-      0.0084,
-      -0.7944,
-      -0.837,
-      -1.5508,
-      1.5876,
-      -0.0919
+    "step5_cam_entry": [
+      -0.0753,
+      -0.655,
+      -0.8552,
+      -1.6091,
+      1.6581,
+      0.0308
     ],
-    "step7_before_cam": [
-      0.5837,
-      -0.8504,
-      -0.6507,
-      -0.9571,
-      1.5523,
-      0.0062
+    "step6_before_cam": [
+      0.4361,
+      -0.7232,
+      -0.7189,
+      -1.0307,
+      1.6505,
+      0.0875
     ],
-    "step9_cam_rotated": [
-      0.5822,
-      -0.8201,
-      -0.6537,
-      -1.0093,
-      1.4557,
+    "step7_cam_rotated": [
+      0.4345,
+      -0.7247,
+      -0.7204,
+      -1.0108,
+      1.652,
       2.5281
     ],
-    "step10_exit_cam": [
-      0.5837,
-      -0.8504,
-      -0.6507,
-      -0.9571,
-      1.5523,
-      0.0062
+    "step8_cam_return": [
+      0.4361,
+      -0.7232,
+      -0.7189,
+      -1.0307,
+      1.6505,
+      0.0875
     ],
-    "step11_over_boxes": [
-      -0.0403,
-      0.26,
-      -0.4598,
-      0.0139,
-      -1.2994,
-      0.0553
+    "step9_exit_cam": [
+      0.4528,
+      -0.8762,
+      -0.6371,
+      -0.9985,
+      1.6367,
+      0.0262
+    ],
+    "step11_home": [
+      -0.0981,
+      -0.7822,
+      -0.7992,
+      -1.5722,
+      1.5216,
+      -0.0475
     ],
     "sort_ok_above": [
       -0.1666,
@@ -126,19 +134,20 @@
   "sequence": [
     "step1_over_cube",
     "step2_at_cube",
-    "step4_up",
-    "step5_top_right",
-    "step6_cam_entry",
-    "step7_before_cam",
-    "step9_cam_rotated",
-    "step10_exit_cam",
-    "step11_over_boxes"
+    "step3_up",
+    "step4_top_right",
+    "step5_cam_entry",
+    "step6_before_cam",
+    "step7_cam_rotated",
+    "step8_cam_return",
+    "step9_exit_cam",
+    "step11_home"
   ],
   "gripper_close_at": "step2_at_cube",
-  "gripper_open_at": "step1_over_cube",
+  "gripper_open_at": "step11_home",
   "capture_at": [
-    "step7_before_cam",
-    "step9_cam_rotated"
+    "step6_before_cam",
+    "step7_cam_rotated"
   ],
   "sort_ok_sequence": [
     "sort_ok_above",
@@ -149,5 +158,19 @@
     "sort_nok_above",
     "sort_nok_drop"
   ],
-  "sort_nok_exit": "sort_nok_exit"
+  "sort_nok_exit": "sort_nok_exit",
+
+  "safety": {
+    "enabled": true,
+    "arm_max_velocity": 80,
+    "grip_loss_threshold": 0.005,
+    "gripper_max_torque_percentage": 100,
+    "gripper_hold_torque_percentage": 100,
+    "grip_check_wait_sec": 0.2,
+    "gripper_close_wait_sec": 0.5,
+    "gripper_open_wait_sec": 0.5,
+    "led_error_color": [255, 0, 0],
+    "led_ok_color": [0, 255, 0],
+    "capture_wait_sec": 3
+  }
 }
