@@ -38,10 +38,6 @@ COLOR_RANGES = {
     ],
 }
 
-# Rückwärtskompatibilität
-ORANGE_LOWER = COLOR_RANGES["orange"][0][0]
-ORANGE_UPPER = COLOR_RANGES["orange"][0][1]
-
 
 def get_color_mask(img, color: str):
     """Gibt eine bereinigte Binärmaske für die angegebene Farbe zurück.

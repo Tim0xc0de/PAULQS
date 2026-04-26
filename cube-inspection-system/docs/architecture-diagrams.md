@@ -38,7 +38,7 @@ flowchart TB
             direction TB
             REPO["Repository<br/>repository.py"]
             MODELS["Models<br/>models.py"]
-            DBE[("SQLite – test.db")]
+            DBE[("SQLite – PaulQS.db")]
         end
     end
 

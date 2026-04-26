@@ -53,7 +53,7 @@ cube-inspection-system/
 │   ├── architecture-diagrams.md      # Architekturdiagramme (Mermaid)
 │   └── folder-structure.md           # Ordnerstruktur (diese Datei)
 │
-├── test.db                           # SQLite-Datenbank (wird automatisch erstellt)
+├── PaulQS.db                         # SQLite-Datenbank (wird automatisch erstellt)
 ├── requirements.txt                  # Python-Abhängigkeiten
 ├── README.md                         # Projektbeschreibung
 ├── PROJEKTPLAN.md                    # Projektplanung

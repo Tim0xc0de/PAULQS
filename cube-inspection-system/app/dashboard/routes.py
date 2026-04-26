@@ -208,15 +208,13 @@ def get_last_inspection(db: Session = Depends(get_db)):
             "id": insp.id,
             "timestamp": insp.timestamp.isoformat() if insp.timestamp else None,
             "actual_dots": actual_dots,
-            "actual_color_left": insp.actual_color_left,
-            "actual_color_right": insp.actual_color_right,
+            "actual_color": insp.actual_color,
             "confidence": insp.confidence,
             "is_ok": insp.is_ok,
         },
         "config": {
             "target_dots": target_dots,
-            "target_color_left": config.target_color_left if config else None,
-            "target_color_right": config.target_color_right if config else None,
+            "target_color": config.target_color if config else None,
         },
         "side_count": side_count,
     }

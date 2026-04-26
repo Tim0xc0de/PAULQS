@@ -10,8 +10,7 @@ from typing import Optional, List
 # CONFIGURATION SCHEMAS
 # ====================================================================
 class ConfigurationCreate(BaseModel):
-    target_color_left: str
-    target_color_right: str
+    target_color: str
     target_dots: List[int]
 
     @field_validator("target_dots", mode="before")
@@ -25,8 +24,7 @@ class ConfigurationCreate(BaseModel):
         from_attributes = True
         json_schema_extra = {
             "example": {
-                "target_color_left": "rot",
-                "target_color_right": "blau",
+                "target_color": "rot",
                 "target_dots": [1, 2, 3]
             }
         }
@@ -36,8 +34,7 @@ class ConfigurationCreate(BaseModel):
 # ====================================================================
 class InspectionCreate(BaseModel):
     config_id: int
-    actual_color_left: Optional[str] = None
-    actual_color_right: Optional[str] = None
+    actual_color: Optional[str] = None
     actual_dots: Optional[List[int]] = None
     confidence: Optional[float] = None
     is_ok: bool
@@ -46,8 +43,7 @@ class InspectionResponse(BaseModel):
     id: int
     config_id: int
     timestamp: datetime
-    actual_color_left: Optional[str]
-    actual_color_right: Optional[str]
+    actual_color: Optional[str]
     actual_dots: Optional[List[int]]
     confidence: Optional[float]
     is_ok: bool

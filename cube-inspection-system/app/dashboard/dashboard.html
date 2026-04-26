@@ -765,14 +765,9 @@
                     <span class="qc-metric-sub">Ist-Wert</span>
                 </div>
                 <div class="qc-metric">
-                    <span class="qc-metric-label">Farbe Links</span>
-                    <span class="qc-metric-value" id="qc-color-left" style="font-size:1rem">&mdash;</span>
-                    <span class="qc-metric-sub" id="qc-color-left-target">Soll: &mdash;</span>
-                </div>
-                <div class="qc-metric">
-                    <span class="qc-metric-label">Farbe Rechts</span>
-                    <span class="qc-metric-value" id="qc-color-right" style="font-size:1rem">&mdash;</span>
-                    <span class="qc-metric-sub" id="qc-color-right-target">Soll: &mdash;</span>
+                    <span class="qc-metric-label">Farbe</span>
+                    <span class="qc-metric-value" id="qc-color" style="font-size:1rem">&mdash;</span>
+                    <span class="qc-metric-sub" id="qc-color-target">Soll: &mdash;</span>
                 </div>
             </div>
 
@@ -1565,10 +1560,8 @@ async function loadInspection() {
         actualEl.textContent = insp.actual_dots ? '[' + insp.actual_dots.join(', ') + ']' : '\u2014';
         actualEl.className = 'qc-metric-value' + (insp.is_ok ? ' pass' : (insp.actual_dots ? ' fail' : ''));
         document.getElementById('qc-target-dots').textContent = conf.target_dots ? '[' + conf.target_dots.join(', ') + ']' : '\u2014';
-        document.getElementById('qc-color-left').textContent = insp.actual_color_left || '\u2014';
-        document.getElementById('qc-color-left-target').textContent = 'Soll: ' + (conf.target_color_left || '\u2014');
-        document.getElementById('qc-color-right').textContent = insp.actual_color_right || '\u2014';
-        document.getElementById('qc-color-right-target').textContent = 'Soll: ' + (conf.target_color_right || '\u2014');
+        document.getElementById('qc-color').textContent = insp.actual_color || '\u2014';
+        document.getElementById('qc-color-target').textContent = 'Soll: ' + (conf.target_color || '\u2014');
 
         if (insp.timestamp) {
             const d = new Date(insp.timestamp);
@@ -1745,7 +1738,7 @@ const API_ENDPOINTS = [
         id: 'config', method: 'POST', path: '/api/config',
         desc: 'Neue Inspektion starten',
         params: [],
-        body: JSON.stringify({ target_color_left: "rot", target_color_right: "blau", target_dots: [1, 2, 3] }, null, 2)
+        body: JSON.stringify({ target_color: "rot", target_dots: [1, 2, 3] }, null, 2)
     },
     {
         id: 'inspections', method: 'GET', path: '/api/inspections',

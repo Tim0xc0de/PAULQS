@@ -109,7 +109,7 @@ nano app/infrastructure/database/db_config.json
 
 ```json
 {
-  "database_url": "sqlite:////home/niryo/PAULQS/cube-inspection-system/test.db",
+  "database_url": "sqlite:////home/niryo/PAULQS/cube-inspection-system/PaulQS.db",
   "check_same_thread": false
 }
 ```

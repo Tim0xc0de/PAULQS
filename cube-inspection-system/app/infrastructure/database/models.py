@@ -12,8 +12,7 @@ from app.infrastructure.database.db import Base
 class Configuration(Base):
     __tablename__ = "configurations"
     id = Column(Integer, primary_key=True, index=True)
-    target_color_left = Column(String)
-    target_color_right = Column(String)
+    target_color = Column(String)
     target_dots = Column(String)
     created_at = Column(DateTime, default=datetime.utcnow)
     inspections = relationship("Inspection", back_populates="config")
@@ -23,8 +22,7 @@ class Inspection(Base):
     id = Column(Integer, primary_key=True, index=True)
     config_id = Column(Integer, ForeignKey("configurations.id"))
     timestamp = Column(DateTime, default=datetime.utcnow)
-    actual_color_left = Column(String)
-    actual_color_right = Column(String)
+    actual_color = Column(String)
     actual_dots = Column(String)
     confidence = Column(Float)
     is_ok = Column(Boolean)

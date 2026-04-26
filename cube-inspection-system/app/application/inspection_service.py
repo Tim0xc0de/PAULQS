@@ -55,7 +55,7 @@ def run_inspection(config_id: int):
         db = SessionLocal()
         try:
             config = db.query(Configuration).filter(Configuration.id == config_id).first()
-            cube_color = config.target_color_left if config and config.target_color_left else "orange"
+            cube_color = config.target_color if config and config.target_color else "orange"
         finally:
             db.close()
         log("INSPECTION", "INFO", f"Zielfarbe: {cube_color}")
@@ -142,10 +142,6 @@ def _analyze_images(captures, color: str = "orange"):
     
     return detections
 
-def _draw_box(img, detection):
-    """Zeichnet Box und Augenzahl ins Bild. (Wrapper fuer draw_detection)"""
-    draw_detection(img, detection)
-
 def _save_result(config_id: int, detections: list) -> bool:
     """Speichert Ergebnis in DB und gibt is_ok zurück."""
     db = SessionLocal()
@@ -156,14 +152,27 @@ def _save_result(config_id: int, detections: list) -> bool:
         actual_dots = [d["dots"] for d in detections if d is not None]
         target_dots = json.loads(config.target_dots) if config and config.target_dots else []
 
-        is_ok = sorted(actual_dots) == sorted(target_dots) if actual_dots and target_dots else False
+        # Erkannte Farbe: erste gueltige Detection nehmen
+        actual_color = None
+        for d in detections:
+            if d is not None and d.get("color"):
+                actual_color = d["color"]
+                break
+
+        target_color = config.target_color if config else None
+
+        # Soll/Ist-Vergleich: Augenzahl UND Farbe muessen stimmen
+        dots_ok = sorted(actual_dots) == sorted(target_dots) if actual_dots and target_dots else False
+        color_ok = actual_color == target_color if actual_color and target_color else False
+        is_ok = dots_ok and color_ok
 
         repo.save_inspection(InspectionCreate(
             config_id=config_id,
+            actual_color=actual_color,
             actual_dots=actual_dots if actual_dots else None,
             is_ok=is_ok,
         ))
-        log("INSPECTION", "INFO", f"Ergebnis: Soll={target_dots}, Ist={actual_dots}, OK={is_ok}")
+        log("INSPECTION", "INFO", f"Ergebnis: Soll={target_dots}/{target_color}, Ist={actual_dots}/{actual_color}, OK={is_ok}")
         return is_ok
     finally:
         db.close()

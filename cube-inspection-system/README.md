@@ -100,7 +100,7 @@ cube-inspection-system/
 │   └── test_images/                     # Testbilder
 │
 ├── requirements.txt                     # Python-Abhaengigkeiten
-└── test.db                              # SQLite-Datenbank (wird automatisch erstellt)
+└── PaulQS.db                            # SQLite-Datenbank (wird automatisch erstellt)
 ```
 
 ---

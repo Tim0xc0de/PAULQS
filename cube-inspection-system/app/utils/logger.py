@@ -4,7 +4,7 @@
 import threading
 from datetime import datetime, timedelta
 from app.infrastructure.database.db import SessionLocal
-from app.infrastructure.database.models import SystemLog
+from app.infrastructure.database.models import SystemLog, Configuration, Inspection
 
 # ====================================================================
 # SYSTEM LOGGER
@@ -42,24 +42,27 @@ def log(module: str, level: str, message: str):
 LOG_RETENTION_DAYS = 30
 _rotation_timer = None
 
-def cleanup_old_logs():
-    """Loescht alle SystemLog-Eintraege, die aelter als LOG_RETENTION_DAYS Tage sind."""
+def cleanup_old_data():
+    """Loescht alle Datensaetze (Logs, Inspektionen, Konfigurationen) aelter als LOG_RETENTION_DAYS Tage."""
     try:
         db = SessionLocal()
         cutoff = datetime.utcnow() - timedelta(days=LOG_RETENTION_DAYS)
-        deleted = db.query(SystemLog).filter(SystemLog.timestamp < cutoff).delete()
+        deleted_logs = db.query(SystemLog).filter(SystemLog.timestamp < cutoff).delete()
+        deleted_insp = db.query(Inspection).filter(Inspection.timestamp < cutoff).delete()
+        deleted_conf = db.query(Configuration).filter(Configuration.created_at < cutoff).delete()
         db.commit()
-        if deleted:
-            print(f"[LOGGER] Log-Rotation: {deleted} Eintraege aelter als {LOG_RETENTION_DAYS} Tage geloescht.")
+        total = deleted_logs + deleted_insp + deleted_conf
+        if total:
+            print(f"[LOGGER] Rotation: {deleted_logs} Logs, {deleted_insp} Inspektionen, {deleted_conf} Konfigurationen geloescht (aelter als {LOG_RETENTION_DAYS} Tage).")
     except Exception as e:
-        print(f"[LOGGER] Fehler bei Log-Rotation: {e}")
+        print(f"[LOGGER] Fehler bei Rotation: {e}")
     finally:
         db.close()
 
 def _rotation_loop():
     """Fuehrt die Log-Rotation aus und plant den naechsten Lauf in 24 Stunden."""
     global _rotation_timer
-    cleanup_old_logs()
+    cleanup_old_data()
     _rotation_timer = threading.Timer(86400, _rotation_loop)
     _rotation_timer.daemon = True
     _rotation_timer.start()

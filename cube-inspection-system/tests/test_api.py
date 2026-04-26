@@ -11,8 +11,7 @@ def test_health_check():
 def test_create_configuration():
     """Testet das Senden einer Würfel-Soll-Konfiguration (FR1)."""
     payload = {
-        "target_color_left": "rot",
-        "target_color_right": "grün",
+        "target_color": "rot",
         "target_dots": [1, 2, 3]
     }
     

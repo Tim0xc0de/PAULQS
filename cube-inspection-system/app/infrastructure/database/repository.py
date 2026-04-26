@@ -12,8 +12,7 @@ class InspectionRepository:
     def save_config(self, config_data: schemas.ConfigurationCreate):
         """Speichert eine neue Soll-Konfiguration."""
         db_config = models.Configuration(
-            target_color_left=config_data.target_color_left,
-            target_color_right=config_data.target_color_right,
+            target_color=config_data.target_color,
             target_dots=json.dumps(config_data.target_dots)
         )
         self.db.add(db_config)
