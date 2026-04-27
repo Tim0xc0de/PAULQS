@@ -25,7 +25,7 @@ class ConfigurationCreate(BaseModel):
         json_schema_extra = {
             "example": {
                 "target_color": "rot",
-                "target_dots": [1, 2, 3]
+                "target_dots": [1, 2, 3, 4, 5, 6]
             }
         }
 

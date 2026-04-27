@@ -73,16 +73,16 @@ def get_dark_spots(gray_roi):
     sind als ihre Umgebung. Funktioniert zuverlässig bei gleichmäßiger
     LED-Beleuchtung, 1-6 Augen und bei Neigung.
     """
-    # Rauschen reduzieren (kleiner Kernel erhält subtile Dot-Schatten)
-    blurred = cv2.GaussianBlur(gray_roi, (3, 3), 0)
+    # Rauschen reduzieren (groesserer Kernel filtert Oberflaechentextur besser)
+    blurred = cv2.GaussianBlur(gray_roi, (7, 7), 0)
     
     # Adaptiver Threshold: erkennt lokal dunklere Stellen
-    # blockSize=31 → Nachbarschaft deutlich größer als ein Auge,
-    #                 damit der Hintergrund-Mittelwert nicht vom Dot verfälscht wird
-    # C=5 → empfindlich genug für subtile Prägungen unter LED-Ring
+    # blockSize=51 → grosse Nachbarschaft, damit der Hintergrund-Mittelwert
+    #                 nicht vom Dot verfaelscht wird
+    # C=8 → staerkerer Threshold, filtert subtile Schatten/Textur besser
     thresh = cv2.adaptiveThreshold(
         blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-        cv2.THRESH_BINARY_INV, 31, 5
+        cv2.THRESH_BINARY_INV, 51, 8
     )
     
     # Halbmonde schließen (LED-Ring erzeugt einseitige Schatten)

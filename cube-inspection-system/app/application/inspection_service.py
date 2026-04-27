@@ -3,13 +3,14 @@
 # ====================================================================
 import os
 import json
+import glob
 import cv2
 from app.infrastructure.database.db import SessionLocal
 from app.infrastructure.database.repository import InspectionRepository
 from app.infrastructure.robot.robot_controller import RobotController, RobotSafetyError
 from app.infrastructure.robot.movements import get_capture_at
 from app.infrastructure.vision.camera import capture
-from app.infrastructure.vision.detection import detect_cube, draw_detection
+from app.infrastructure.vision.detection import detect_cube, draw_detection, _crop_black_bars
 from app.infrastructure.database.models import Configuration
 from app.api.schemas import InspectionCreate
 from app.application.sorting_service import sort_cube
@@ -45,7 +46,8 @@ def run_inspection(config_id: int):
             return
         log("INSPECTION", "INFO", "Roboter vorbereitet")
 
-        # Schritt 3: Roboter-Sequenz fahren und Bilder aufnehmen
+        # Schritt 3: Alte Bilder loeschen + Roboter-Sequenz fahren
+        _clean_captures()
         capture_positions = get_capture_at()
         log("INSPECTION", "INFO", f"Starte Sequenz, Fotos bei: {capture_positions}")
         captures = _run_robot_sequence(controller, capture_positions)
@@ -66,8 +68,8 @@ def run_inspection(config_id: int):
         # Schritt 6: Ergebnis in Datenbank speichern
         is_ok = _save_result(config_id, detections)
 
-        # Schritt 7: Würfel in die richtige Kiste sortieren
-        sort_cube(controller, is_ok)
+        # Schritt 7: Sortierung (vorerst deaktiviert)
+        # sort_cube(controller, is_ok)
 
         log("INSPECTION", "INFO", f"Inspektion abgeschlossen (Config-ID: {config_id}, OK: {is_ok})")
 
@@ -90,6 +92,14 @@ def run_inspection(config_id: int):
 # ====================================================================
 # HILFSFUNKTIONEN
 # ====================================================================
+def _clean_captures():
+    """Loescht alte Seitenbilder vor einer neuen Inspektion."""
+    for f in glob.glob(os.path.join(CAPTURE_DIR, "side_*")):
+        try:
+            os.remove(f)
+        except Exception:
+            pass
+
 def _run_robot_sequence(controller, capture_positions):
     """
     Führt die Roboter-Sequenz aus und macht Fotos an bestimmten Positionen.
@@ -126,14 +136,15 @@ def _analyze_images(captures, color: str = "orange"):
         detection = detect_cube(img, color)
         detections.append(detection)
         
-        # Rohbild speichern
+        # Rohbild speichern (schwarze Balken entfernt)
+        img_cropped = _crop_black_bars(img)
         raw_path = os.path.join(CAPTURE_DIR, f"side_{i}_raw.jpg")
-        cv2.imwrite(raw_path, img)
+        cv2.imwrite(raw_path, img_cropped)
         
         if detection:
             log("VISION", "INFO", f"Seite {i} ({step_name}): {detection['dots']} Augen erkannt")
-            # Ergebnisbild mit Box speichern
-            result_img = img.copy()
+            # Ergebnisbild mit Box speichern (schwarze Balken entfernt)
+            result_img = img_cropped.copy()
             draw_detection(result_img, detection)
             result_path = os.path.join(CAPTURE_DIR, f"side_{i}_result.jpg")
             cv2.imwrite(result_path, result_img)

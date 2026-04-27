@@ -19,7 +19,13 @@ class RobotSafetyError(Exception):
 
 
 class RobotController:
-    """Steuert den Niryo-Roboter mit Safety (robot_config.json → safety)."""
+    """Steuert den Niryo-Roboter mit Safety (robot_config.json → safety).
+
+    Grip-Monitoring:
+      Nach jedem close_gripper und nach jeder Bewegung mit geschlossenem
+      Greifer wird der Griff verifiziert (Nachgreifen + Joint-Vergleich).
+      Konfigurierbar ueber safety.verify_grip (default: True).
+    """
 
     def __init__(self):
         self.robot = None
@@ -103,7 +109,7 @@ class RobotController:
             return False
         try:
             self.robot.move_joints(*pos)
-            log("ROBOT", "INFO", f"→ {position_name}")
+            log("ROBOT", "INFO", f"\u2192 {position_name}")
             if self._safety["enabled"]:
                 self._safety_check(position_name)
             return True
@@ -125,13 +131,30 @@ class RobotController:
     # GREIFER
     # ================================================================
 
-    def grip(self):
+    def grip(self) -> bool:
+        """Schliesst den Greifer und verifiziert den Griff.
+
+        Nach dem Schliessen wird der Griff geprueft (Nachgreifen + Joint-
+        Vergleich). Schlaegt die Pruefung fehl, wird ein Notfall-Stopp
+        ausgeloest und RobotSafetyError geworfen.
+
+        Returns True bei Erfolg.
+        Raises RobotSafetyError wenn kein Wuerfel gegriffen.
+        """
         if not self.robot:
             return False
-        self.robot.close_gripper(speed=get_gripper_speed(),
-            max_torque_percentage=self._safety["gripper_max_torque_percentage"])
+        self.robot.close_gripper(
+            speed=get_gripper_speed(),
+            max_torque_percentage=self._safety["gripper_max_torque_percentage"],
+        )
         time.sleep(self._safety["gripper_close_wait_sec"])
         self._gripper_closed = True
+
+        if self._safety["enabled"] and self._safety.get("verify_grip", True):
+            if not self._check_grip():
+                self._gripper_closed = False
+                self.emergency_stop("Griff-Verifikation fehlgeschlagen - kein Wuerfel gegriffen")
+                raise RobotSafetyError("Greifer leer oder Wuerfel verloren nach Greifen")
         log("ROBOT", "INFO", "Greifer zu")
         return True
 
@@ -160,40 +183,78 @@ class RobotController:
         log("ROBOT", "WARNING", "Motoren aktiv. Manuell sichern!")
 
     def _safety_check(self, pos_name: str):
-        """Kollision + Grip nach Move. Raises RobotSafetyError."""
+        """Kollision + Grip-Monitoring nach jedem Move.
+
+        1. Kollisionserkennung (Niryo-intern)
+        2. Grip-Monitoring: Nachgreifen + Joint-Vergleich wenn Greifer
+           geschlossen sein sollte (nur bei verify_grip=True).
+
+        Raises RobotSafetyError bei Problem.
+        """
         if self._check_collision():
             self.emergency_stop(f"Kollision bei '{pos_name}'")
             raise RobotSafetyError(f"Kollision bei '{pos_name}'")
-        if self._gripper_closed and not self._check_grip():
-            self.emergency_stop(f"Wuerfel verloren bei '{pos_name}'")
-            raise RobotSafetyError(f"Wuerfel verloren bei '{pos_name}'")
+
+        if (self._gripper_closed
+                and self._safety.get("verify_grip", True)):
+            if not self._check_grip():
+                self.emergency_stop(f"Wuerfelverlust bei '{pos_name}'")
+                raise RobotSafetyError(f"Wuerfelverlust bei '{pos_name}'")
 
     def _check_collision(self) -> bool:
         try: return self.robot.get_collision_detected()
         except Exception: return False
 
     def _check_grip(self) -> bool:
-        """Nachgreifen + Joint-Vergleich. True = Wuerfel da."""
+        """Nachgreifen + Joint-Vergleich. True = Griff OK.
+
+        Schliesst den Greifer erneut und vergleicht die Arm-Joints
+        vorher/nachher. Aendert sich ein Joint um mehr als
+        grip_loss_threshold → Wuerfel hat sich verschoben oder ist weg.
+
+        Hinweis: Kann 'leeren Griff' (Greifer schliesst auf Luft) nicht
+        zuverlaessig von 'festem Griff' unterscheiden, da pyniryo v1
+        keine Greifer-Positionsrueckmeldung bietet. Fuer 100%ige Leer-
+        Griff-Erkennung waere ein physischer Sensor am Greifer noetig.
+        """
         threshold = self._safety["grip_loss_threshold"]
-        joints_before = self.robot.get_joints()
-        self.robot.close_gripper(speed=get_gripper_speed(),
-            max_torque_percentage=self._safety["gripper_max_torque_percentage"])
-        time.sleep(self._safety["grip_check_wait_sec"])
-        joints_after = self.robot.get_joints()
-        try: self.robot.clear_collision_detected()
-        except Exception: pass
-        for j in range(6):
-            if abs(float(joints_after[j]) - float(joints_before[j])) > threshold:
-                log("ROBOT", "WARNING", f"Grip: Joint {j} diff > {threshold}")
-                return False
-        return True
+        try:
+            joints_before = self.robot.get_joints()
+            self.robot.close_gripper(
+                speed=get_gripper_speed(),
+                max_torque_percentage=self._safety["gripper_max_torque_percentage"],
+            )
+            time.sleep(self._safety["grip_check_wait_sec"])
+            joints_after = self.robot.get_joints()
+            try: self.robot.clear_collision_detected()
+            except Exception: pass
+
+            for j in range(6):
+                diff = abs(float(joints_after[j]) - float(joints_before[j]))
+                if diff > threshold:
+                    log("ROBOT", "WARNING",
+                        f"Grip-Check: Joint {j} Abweichung {diff:.4f} > {threshold}")
+                    return False
+            return True
+        except NiryoRobotException as e:
+            log("ROBOT", "ERROR", f"Grip-Check Fehler: {e}")
+            return False
 
     # ================================================================
     # SEQUENZEN
     # ================================================================
 
     def run_sequence_with_capture(self, capture_steps=None, capture_fn=None):
-        """Inspektionssequenz. Returns [(pos_name, image), ...]"""
+        """Inspektionssequenz mit Grip-Monitoring.
+
+        Ablauf pro Schritt:
+          1. move_to(pos) → _safety_check (Kollision + Grip wenn closed)
+          2. Greifer oeffnen/schliessen falls konfiguriert
+          3. Foto aufnehmen falls konfiguriert
+
+        Returns [(pos_name, image), ...]
+        Raises RobotSafetyError bei Kollision oder Wuerfelverlust.
+        """
         gripper_close = get_gripper_close_at()
         gripper_open = get_gripper_open_at()
         capture_wait = self._safety["capture_wait_sec"]
@@ -201,14 +262,14 @@ class RobotController:
         captures = []
 
         for pos_name in get_sequence():
-            if pos_name == gripper_open:
-                self.release()
-
-            log("ROBOT", "INFO", f"→ {pos_name}")
             if not self.move_to(pos_name):
                 return []
 
-            if pos_name == gripper_close:
+            if pos_name in gripper_open:
+                time.sleep(1.5)
+                self.release()
+
+            if pos_name in gripper_close:
                 self.grip()
 
             if capture_fn and pos_name in capture_steps:
@@ -222,10 +283,10 @@ class RobotController:
         """Sortierung: OK/NOK → Box → Greifer auf → Home"""
         if is_ok:
             seq, exit_pos = get_sort_ok_sequence(), get_sort_ok_exit()
-            log("SORTING", "INFO", "OK → OK-Box")
+            log("SORTING", "INFO", "OK \u2192 OK-Box")
         else:
             seq, exit_pos = get_sort_nok_sequence(), get_sort_nok_exit()
-            log("SORTING", "WARNING", "NOK → NOK-Box")
+            log("SORTING", "WARNING", "NOK \u2192 NOK-Box")
 
         for pos_name in seq:
             self.move_to(pos_name)

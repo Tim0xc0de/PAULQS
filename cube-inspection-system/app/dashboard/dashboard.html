@@ -186,7 +186,7 @@
         .pos-actions { display: flex; gap: 6px; }
 
         /* --- Config Tab: Sort/Capture Selectors --- */
-        .cfg-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .cfg-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; }
         .cfg-box {
             background: var(--card); border: 1px solid var(--border); border-radius: 12px;
             padding: 16px; display: flex; flex-direction: column; gap: 8px;
@@ -777,8 +777,8 @@
             </div>
         </div>
 
-        <div class="section-title">Aufnahmen pro Seite <span class="count" id="side-count">0</span></div>
-        <div id="qc-sides-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;">
+        <div class="section-title">Würfelseiten <span class="count" id="side-count">0 / 6</span></div>
+        <div id="qc-sides-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;">
             <div class="qc-image-card">
                 <div class="qc-image-wrap">
                     <div class="qc-image-placeholder">
@@ -886,17 +886,18 @@
                 </select>
             </div>
             <div class="cfg-box">
-                <span class="cfg-box-title">Greifer-Aktionen</span>
-                <div style="display:flex;flex-direction:column;gap:6px">
-                    <div style="display:flex;align-items:center;gap:8px">
-                        <span style="font-size:0.75rem;font-weight:600;color:var(--muted);width:100px">Greifer ZU bei:</span>
-                        <select class="cfg-select" id="cfg-gripper-close" onchange="cfg.gripper_close_at=this.value;renderPipeline();renderPositions()" style="flex:1"></select>
-                    </div>
-                    <div style="display:flex;align-items:center;gap:8px">
-                        <span style="font-size:0.75rem;font-weight:600;color:var(--muted);width:100px">Greifer AUF bei:</span>
-                        <select class="cfg-select" id="cfg-gripper-open" onchange="cfg.gripper_open_at=this.value;renderPipeline();renderPositions()" style="flex:1"></select>
-                    </div>
-                </div>
+                <span class="cfg-box-title">Greifer ZU (gripper_close_at)</span>
+                <div class="cfg-tag-list" id="cfg-gripper-close-tags"></div>
+                <select class="cfg-select" id="cfg-gripper-close-add" onchange="addGripperAt('close',this)">
+                    <option value="">+ Position hinzuf&uuml;gen...</option>
+                </select>
+            </div>
+            <div class="cfg-box">
+                <span class="cfg-box-title">Greifer AUF (gripper_open_at)</span>
+                <div class="cfg-tag-list" id="cfg-gripper-open-tags"></div>
+                <select class="cfg-select" id="cfg-gripper-open-add" onchange="addGripperAt('open',this)">
+                    <option value="">+ Position hinzuf&uuml;gen...</option>
+                </select>
             </div>
         </div>
         <div class="cfg-row" style="margin-top:12px">
@@ -943,6 +944,7 @@
                 <input class="teach-name-input" id="teach-step-name" placeholder="Step-Name (z.B. step12_new)" spellcheck="false">
                 <button class="teach-capture-btn" id="teach-capture-btn" onclick="captureTeachPosition()">Position erfassen</button>
                 <span class="teach-joints-display" id="teach-joints-display">&mdash;</span>
+                <button class="pos-copy-btn" id="teach-copy-btn" onclick="copyTeachPosition()" title="Position kopieren" style="flex-shrink:0">&#128203;</button>
                 <button class="teach-save-btn" id="teach-save-btn" onclick="saveTeachPosition()" disabled>In Config &uuml;bernehmen</button>
             </div>
         </div>
@@ -954,6 +956,7 @@
             <div style="display:flex;align-items:center;gap:8px">Positionen (Joints in Rad) <span class="count" id="pos-count">0</span></div>
             <div style="display:flex;gap:8px;align-items:center">
                 <span style="font-size:0.7rem;color:var(--light)">Format: [J1, J2, J3, J4, J5, J6]</span>
+                <button class="btn btn-outline btn-sm" onclick="copyAllPositions()">Alle kopieren</button>
                 <button class="btn btn-outline btn-sm" onclick="addStep()">+ Neuer Step</button>
             </div>
         </div>
@@ -1157,6 +1160,8 @@ async function loadFromServer() {
         if (!res.ok) throw new Error('Server error');
         cfg = await res.json();
         if (!cfg.capture_at) cfg.capture_at = [];
+        if (!Array.isArray(cfg.gripper_close_at)) cfg.gripper_close_at = cfg.gripper_close_at ? [cfg.gripper_close_at] : [];
+        if (!Array.isArray(cfg.gripper_open_at)) cfg.gripper_open_at = cfg.gripper_open_at ? [cfg.gripper_open_at] : [];
         if (!cfg.sort_ok_sequence) cfg.sort_ok_sequence = [];
         if (!cfg.sort_nok_sequence) cfg.sort_nok_sequence = [];
         if (!cfg.sort_ok_exit) cfg.sort_ok_exit = '';
@@ -1236,9 +1241,9 @@ function posOptions(selected) {
 }
 
 function renderConfigSelectors() {
-    // Gripper selectors
-    document.getElementById('cfg-gripper-close').innerHTML = posOptions(cfg.gripper_close_at);
-    document.getElementById('cfg-gripper-open').innerHTML = posOptions(cfg.gripper_open_at);
+    // Gripper close tags
+    renderGripperTags('close');
+    renderGripperTags('open');
 
     // Capture at tags
     const capTags = document.getElementById('cfg-capture-tags');
@@ -1258,6 +1263,32 @@ function renderConfigSelectors() {
     // Sort exit selectors
     document.getElementById('cfg-sort-ok-exit').innerHTML = posOptions(cfg.sort_ok_exit);
     document.getElementById('cfg-sort-nok-exit').innerHTML = posOptions(cfg.sort_nok_exit);
+}
+
+function renderGripperTags(type) {
+    const key = 'gripper_' + type + '_at';
+    const arr = cfg[key] || [];
+    const container = document.getElementById('cfg-gripper-' + type + '-tags');
+    container.innerHTML = arr.map((s,i) =>
+        '<span class="cfg-tag">' + s + '<span class="cfg-tag-x" onclick="removeGripperAt(\'' + type + '\',' + i + ')">&times;</span></span>'
+    ).join('');
+    const addSel = document.getElementById('cfg-gripper-' + type + '-add');
+    addSel.innerHTML = '<option value="">+ Position hinzuf\u00fcgen...</option>';
+    Object.keys(cfg.positions).forEach(k => {
+        if (!arr.includes(k)) addSel.innerHTML += '<option value="' + k + '">' + k + '</option>';
+    });
+}
+function addGripperAt(type, sel) {
+    if (!sel.value) return;
+    const key = 'gripper_' + type + '_at';
+    if (!cfg[key]) cfg[key] = [];
+    cfg[key].push(sel.value);
+    renderConfigSelectors(); renderPipeline(); renderPositions();
+}
+function removeGripperAt(type, idx) {
+    const key = 'gripper_' + type + '_at';
+    cfg[key].splice(idx, 1);
+    renderConfigSelectors(); renderPipeline(); renderPositions();
 }
 
 function addCaptureAt(sel) {
@@ -1305,6 +1336,8 @@ function renderPipeline() {
     track.innerHTML = '';
     document.getElementById('seq-count').textContent = cfg.sequence.length;
     const captureSet = new Set(cfg.capture_at || []);
+    const closeSet = new Set(cfg.gripper_close_at || []);
+    const openSet = new Set(cfg.gripper_open_at || []);
 
     cfg.sequence.forEach((step, i) => {
         if (i > 0) {
@@ -1317,15 +1350,14 @@ function renderPipeline() {
         const node = document.createElement('div');
         node.className = 'p-node'; node.draggable = true;
         node.dataset.step = step; node.dataset.idx = i;
-
         let bc = 'p-box';
-        if (step === cfg.gripper_close_at) bc += ' close-box';
-        else if (step === cfg.gripper_open_at) bc += ' open-box';
+        if (closeSet.has(step)) bc += ' close-box';
+        else if (openSet.has(step)) bc += ' open-box';
         else if (captureSet.has(step)) bc += ' capture-box';
 
         let tags = '';
-        if (step === cfg.gripper_close_at) tags += '<span class="p-tag close-tag">Greifen</span>';
-        if (step === cfg.gripper_open_at) tags += '<span class="p-tag open-tag">Loslassen</span>';
+        if (closeSet.has(step)) tags += '<span class="p-tag close-tag">Greifen</span>';
+        if (openSet.has(step)) tags += '<span class="p-tag open-tag">Loslassen</span>';
         if (captureSet.has(step)) tags += '<span class="p-tag capture-tag">Foto</span>';
 
         const num = (i + 1);
@@ -1386,12 +1418,12 @@ function renderPositions() {
         const vals = cfg.positions[step];
         const tr = document.createElement('tr');
         tr.dataset.step = step;
-        if (step === cfg.gripper_close_at) tr.classList.add('close-row');
-        if (step === cfg.gripper_open_at) tr.classList.add('open-row');
+        if ((cfg.gripper_close_at || []).includes(step)) tr.classList.add('close-row');
+        if ((cfg.gripper_open_at || []).includes(step)) tr.classList.add('open-row');
 
         let badges = '';
-        if (step === cfg.gripper_close_at) badges += '<span class="pos-badge green">Greifer zu</span> ';
-        if (step === cfg.gripper_open_at) badges += '<span class="pos-badge red">Greifer auf</span> ';
+        if ((cfg.gripper_close_at || []).includes(step)) badges += '<span class="pos-badge green">Greifer zu</span> ';
+        if ((cfg.gripper_open_at || []).includes(step)) badges += '<span class="pos-badge red">Greifer auf</span> ';
         if ((cfg.capture_at || []).includes(step)) badges += '<span class="pos-badge blue">Aufnahme</span> ';
         if (!badges && cfg.sequence.includes(step)) badges = '<span class="pos-badge blue">Sequenz</span>';
 
@@ -1440,8 +1472,8 @@ function renameStep(input) {
     cfg.positions[newName] = cfg.positions[oldName];
     delete cfg.positions[oldName];
     cfg.sequence = cfg.sequence.map(s => s === oldName ? newName : s);
-    if (cfg.gripper_close_at === oldName) cfg.gripper_close_at = newName;
-    if (cfg.gripper_open_at === oldName) cfg.gripper_open_at = newName;
+    if (cfg.gripper_close_at) cfg.gripper_close_at = cfg.gripper_close_at.map(s => s === oldName ? newName : s);
+    if (cfg.gripper_open_at) cfg.gripper_open_at = cfg.gripper_open_at.map(s => s === oldName ? newName : s);
     if (cfg.capture_at) cfg.capture_at = cfg.capture_at.map(s => s === oldName ? newName : s);
     if (cfg.sort_ok_sequence) cfg.sort_ok_sequence = cfg.sort_ok_sequence.map(s => s === oldName ? newName : s);
     if (cfg.sort_nok_sequence) cfg.sort_nok_sequence = cfg.sort_nok_sequence.map(s => s === oldName ? newName : s);
@@ -1449,6 +1481,12 @@ function renameStep(input) {
     if (cfg.sort_nok_exit === oldName) cfg.sort_nok_exit = newName;
     renderPipeline(); renderPositions(); renderConfigSelectors();
     toast('Umbenannt: ' + oldName + ' \u2192 ' + newName, 'info');
+}
+function copyAllPositions() {
+    const keys = Object.keys(cfg.positions);
+    const lines = keys.map(k => k + ': ' + formatPos(cfg.positions[k]));
+    navigator.clipboard.writeText(lines.join('\n'));
+    toast('Alle ' + keys.length + ' Positionen kopiert!');
 }
 function addStep() {
     const n = Object.keys(cfg.positions).length + 1;
@@ -1462,8 +1500,8 @@ function removeStep(step) {
     if (Object.keys(cfg.positions).length <= 1) return;
     delete cfg.positions[step];
     cfg.sequence = cfg.sequence.filter(s => s !== step);
-    if (cfg.gripper_close_at === step) cfg.gripper_close_at = '';
-    if (cfg.gripper_open_at === step) cfg.gripper_open_at = '';
+    if (cfg.gripper_close_at) cfg.gripper_close_at = cfg.gripper_close_at.filter(s => s !== step);
+    if (cfg.gripper_open_at) cfg.gripper_open_at = cfg.gripper_open_at.filter(s => s !== step);
     if (cfg.capture_at) cfg.capture_at = cfg.capture_at.filter(s => s !== step);
     if (cfg.sort_ok_sequence) cfg.sort_ok_sequence = cfg.sort_ok_sequence.filter(s => s !== step);
     if (cfg.sort_nok_sequence) cfg.sort_nok_sequence = cfg.sort_nok_sequence.filter(s => s !== step);
@@ -1547,7 +1585,7 @@ async function loadInspection() {
         if (insp.is_ok) {
             verdict.className = 'qc-verdict pass'; vIcon.textContent = '\u2714';
             vTitle.textContent = 'Qualit\u00e4t OK';
-            vSub.textContent = 'Alle Seiten stimmen \u00fcberein (Reihenfolge egal).';
+            vSub.textContent = 'Alle 6 Seiten stimmen \u00fcberein (Augenzahl + Farbe).';
         } else {
             verdict.className = 'qc-verdict fail'; vIcon.textContent = '\u2718';
             vTitle.textContent = 'Nicht bestanden';
@@ -1577,25 +1615,28 @@ async function loadInspection() {
     btn.classList.remove('loading-btn'); btn.textContent = 'Aktualisieren';
 }
 
+const SIDE_LABELS = ['Vorne', 'Hinten', 'Links', 'Rechts', 'Oben', 'Unten'];
+
 function renderSideImages(count, actualDots) {
     const grid = document.getElementById('qc-sides-grid');
-    document.getElementById('side-count').textContent = count;
+    document.getElementById('side-count').textContent = count + ' / 6';
     if (count === 0) {
-        grid.innerHTML = '<div class="qc-image-card"><div class="qc-image-wrap"><div class="qc-image-placeholder"><span class="placeholder-icon">&#128247;</span><span>Noch keine Aufnahmen</span></div></div></div>';
+        grid.innerHTML = '<div style="grid-column:1/-1" class="qc-image-card"><div class="qc-image-wrap"><div class="qc-image-placeholder"><span class="placeholder-icon">&#128247;</span><span>Noch keine Aufnahmen</span></div></div></div>';
         return;
     }
     const ts = Date.now(); let html = '';
     for (let i = 1; i <= count; i++) {
         const dots = (actualDots && actualDots[i-1] !== undefined) ? actualDots[i-1] : '?';
+        const label = SIDE_LABELS[i-1] || ('Seite ' + i);
         html += '<div class="qc-image-card">' +
             '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">' +
-            '<span style="font-weight:800;font-size:0.85rem">Seite ' + i + '</span>' +
+            '<span style="font-weight:800;font-size:0.85rem">' + label + ' <span style="font-weight:500;color:var(--light);font-size:0.75rem">(Seite ' + i + ')</span></span>' +
             '<span style="font-size:0.75rem;font-weight:700;color:var(--muted)">Augen: ' + dots + '</span></div>' +
             '<div class="qc-image-tabs">' +
             '<button class="qc-tab active" onclick="switchSideTab(' + i + ',\'result\',this)">Erkennung</button>' +
             '<button class="qc-tab" onclick="switchSideTab(' + i + ',\'raw\',this)">Original</button></div>' +
             '<div class="qc-image-wrap" id="qc-side-' + i + '">' +
-            '<img src="/dashboard/side-image/' + i + '/result?t=' + ts + '" alt="Seite ' + i + '" ' +
+            '<img src="/dashboard/side-image/' + i + '/result?t=' + ts + '" alt="' + label + '" ' +
             'onerror="this.parentNode.innerHTML=\'<div class=qc-image-placeholder><span class=placeholder-icon>&#128247;</span><span>Bild nicht verf\u00fcgbar</span></div>\'"></div></div>';
     }
     grid.innerHTML = html;
@@ -2016,6 +2057,15 @@ async function captureTeachPosition() {
     btn.textContent = 'Position erfassen';
 }
 
+function copyTeachPosition() {
+    if (!teachCapturedJoints) { toast('Erst Position erfassen!', 'info'); return; }
+    const posStr = '[' + teachCapturedJoints.join(', ') + ']';
+    navigator.clipboard.writeText(posStr);
+    const btn = document.getElementById('teach-copy-btn');
+    btn.classList.add('copied'); btn.innerHTML = '&#10003;';
+    setTimeout(() => { btn.classList.remove('copied'); btn.innerHTML = '&#128203;'; }, 1500);
+    toast('Position kopiert: ' + posStr);
+}
 function saveTeachPosition() {
     if (!teachCapturedJoints || !cfg) return;
     const nameInput = document.getElementById('teach-step-name');
